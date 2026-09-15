@@ -16,6 +16,7 @@ import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
 import { EmptyState } from '../components/common';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
+import { formatRelativeTime } from '../utils/date';
 
 export interface NotificationItem {
   id: number;
@@ -146,25 +147,6 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     }
   };
 
-  const formatTimestamp = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const now = new Date();
-      const diffMs = now.getTime() - d.getTime();
-      const diffMinutes = Math.floor(diffMs / (1000 * 60));
-
-      if (diffMinutes < 1) return 'Vừa xong';
-      if (diffMinutes < 60) return `${diffMinutes} phút trước`;
-      const diffHours = Math.floor(diffMinutes / 60);
-      if (diffHours < 24) return `${diffHours} giờ trước`;
-      const diffDays = Math.floor(diffHours / 24);
-      if (diffDays < 7) return `${diffDays} ngày trước`;
-      return d.toLocaleDateString('vi-VN');
-    } catch {
-      return '';
-    }
-  };
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
@@ -250,7 +232,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                     {item.content}
                   </Text>
                   <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-                    {formatTimestamp(item.created_at)}
+                    {formatRelativeTime(item.created_at)}
                   </Text>
                 </View>
 

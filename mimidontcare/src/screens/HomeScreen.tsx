@@ -6,15 +6,19 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  Image,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
+import { Avatar, EmptyState } from '../components/common';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
+import { formatConversationTime } from '../utils/date';
 
 export interface ConversationItem {
   id: number;
@@ -54,6 +58,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenNotifications,
 }) => {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,49 +161,39 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return matchesSearch;
   });
 
-  const formatTimestamp = (dateStr: string | undefined) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffHours = (now.getTime() - d.getTime()) / (1000 * 60 * 60);
-
-    if (diffHours < 24) {
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    }
-    return d.toLocaleDateString('vi-VN', { month: 'numeric', day: 'numeric' });
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Top App Bar */}
-      <View style={styles.topBar}>
+      <View style={[styles.topBar, { borderBottomColor: colors.borderLight }]}>
         <TouchableOpacity style={styles.avatarButton} onPress={onOpenProfile} activeOpacity={0.8}>
-          {user?.avatar_url ? (
-            <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>
-                {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
-              </Text>
-            </View>
-          )}
+          <Avatar
+            uri={user?.avatar_url}
+            name={user?.username}
+            size="sm"
+            showStatus
+            isOnline={true}
+          />
         </TouchableOpacity>
 
         <View style={styles.topBarCenter}>
-          <Text style={styles.appTitle}>Đoạn chat</Text>
-          <Text style={styles.userStatus}>Đang hoạt động</Text>
+          <Text style={[Typography.headline, styles.appTitle, { color: colors.textPrimary }]}>
+            Đoạn chat
+          </Text>
+          <Text style={[Typography.caption, { color: colors.online }]}>
+            Đang hoạt động
+          </Text>
         </View>
 
         <View style={styles.topBarRightActions}>
           <TouchableOpacity
-            style={styles.iconButton}
+            style={[styles.iconButton, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
             onPress={onOpenNotifications}
             activeOpacity={0.7}
             accessibilityLabel="Thông báo"
           >
-            <Ionicons name="notifications-outline" size={20} color="#f8fafc" />
+            <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
             {unreadNotifCount > 0 && (
-              <View style={styles.bellBadge}>
+              <View style={[styles.bellBadge, { backgroundColor: colors.unreadBadge }]}>
                 <Text style={styles.bellBadgeText}>
                   {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
                 </Text>
@@ -207,30 +202,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.iconButton, { marginLeft: 8 }]}
+            style={[styles.iconButton, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, marginLeft: 8 }]}
             onPress={onOpenSearch}
             activeOpacity={0.7}
             accessibilityLabel="Tìm kiếm"
           >
-            <Ionicons name="search-outline" size={20} color="#f8fafc" />
+            <Ionicons name="search-outline" size={20} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Search Input Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>🔎</Text>
+        <View style={[styles.searchBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
+          <Ionicons name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[Typography.body, styles.searchInput, { color: colors.textPrimary }]}
             placeholder="Tìm kiếm bạn bè hoặc tin nhắn..."
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={colors.textPlaceholder}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Text style={styles.clearText}>✕</Text>
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={6}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -239,23 +234,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Quick Action Badges */}
       <View style={styles.quickActions}>
         <TouchableOpacity
-          style={[styles.actionChip, filterMode === 'all' && styles.actionChipActive]}
+          style={[
+            styles.actionChip,
+            { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+            filterMode === 'all' && { backgroundColor: colors.primary, borderColor: colors.primary },
+          ]}
           onPress={() => setFilterMode('all')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.actionChipText, filterMode === 'all' && styles.actionChipTextActive]}>
+          <Text
+            style={[
+              Typography.caption,
+              styles.actionChipText,
+              { color: filterMode === 'all' ? colors.onPrimary : colors.textSecondary },
+              filterMode === 'all' && styles.actionChipTextActive,
+            ]}
+          >
             Tất cả
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionChip, filterMode === 'unread' && styles.actionChipActive]}
+          style={[
+            styles.actionChip,
+            { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+            filterMode === 'unread' && { backgroundColor: colors.primary, borderColor: colors.primary },
+          ]}
           onPress={() => setFilterMode('unread')}
           activeOpacity={0.7}
         >
           <Text
             style={[
+              Typography.caption,
               styles.actionChipText,
+              { color: filterMode === 'unread' ? colors.onPrimary : colors.textSecondary },
               filterMode === 'unread' && styles.actionChipTextActive,
             ]}
           >
@@ -264,26 +276,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.actionChip}
+          style={[styles.actionChip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
           onPress={onOpenMessageRequests}
           activeOpacity={0.7}
         >
-          <Text style={styles.actionChipText}>Tin nhắn chờ</Text>
+          <Text style={[Typography.caption, styles.actionChipText, { color: colors.textSecondary }]}>
+            Tin nhắn chờ
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Conversations List / Loading / Empty State */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : filteredConversations.length > 0 ? (
         <FlatList
           data={filteredConversations}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#3b82f6" />
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
           }
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
           renderItem={({ item }) => {
             const isMeLastSender = item.last_message?.sender_id === user?.id;
             const messagePreview = item.last_message
@@ -294,36 +312,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             return (
               <TouchableOpacity
-                style={styles.conversationCard}
+                style={[
+                  styles.conversationCard,
+                  { backgroundColor: colors.surface, borderColor: colors.borderLight },
+                  Shadows.sm,
+                ]}
                 onPress={() => onSelectConversation && onSelectConversation(item)}
                 activeOpacity={0.7}
               >
                 {/* Avatar */}
-                {item.peer.avatar_url ? (
-                  <Image source={{ uri: item.peer.avatar_url }} style={styles.convAvatar} />
-                ) : (
-                  <View style={styles.convAvatarPlaceholder}>
-                    <Text style={styles.convAvatarText}>
-                      {item.peer.username ? item.peer.username.charAt(0).toUpperCase() : 'U'}
-                    </Text>
-                  </View>
-                )}
+                <Avatar
+                  uri={item.peer.avatar_url}
+                  name={item.peer.username}
+                  size="md"
+                />
 
                 {/* Content */}
                 <View style={styles.convContent}>
                   <View style={styles.convTopRow}>
-                    <Text style={styles.peerName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        Typography.title,
+                        styles.peerName,
+                        { color: colors.textPrimary },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {item.peer.username}
                     </Text>
-                    <Text style={styles.convTime}>
-                      {formatTimestamp(item.last_message?.created_at || item.updated_at)}
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      {formatConversationTime(item.last_message?.created_at || item.updated_at)}
                     </Text>
                   </View>
 
                   <View style={styles.convBottomRow}>
                     <Text
                       style={[
+                        Typography.bodyMedium,
                         styles.lastMessageText,
+                        { color: item.unread_count > 0 ? colors.textPrimary : colors.textSecondary },
                         item.unread_count > 0 && styles.lastMessageUnread,
                       ]}
                       numberOfLines={1}
@@ -332,7 +359,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </Text>
 
                     {item.unread_count > 0 && (
-                      <View style={styles.unreadBadge}>
+                      <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
                         <Text style={styles.unreadBadgeText}>
                           {item.unread_count > 99 ? '99+' : item.unread_count}
                         </Text>
@@ -347,20 +374,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}>
-            <Text style={styles.emptyIcon}>💬</Text>
-          </View>
-          <Text style={styles.emptyTitle}>
-            {searchQuery ? 'Không tìm thấy cuộc trò chuyện nào' : 'Chưa có cuộc trò chuyện nào'}
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery
-              ? `Không có tin nhắn nào khớp với "${searchQuery}"`
-              : 'Hãy tìm kiếm bạn bè hoặc gửi lời mời để bắt đầu trò chuyện thời gian thực 1-1!'}
-          </Text>
-          <TouchableOpacity style={styles.startChatButton} onPress={onOpenSearch} activeOpacity={0.8}>
-            <Text style={styles.startChatButtonText}>+ Bắt đầu trò chuyện mới</Text>
-          </TouchableOpacity>
+          <EmptyState
+            icon="chatbubbles-outline"
+            title={searchQuery ? 'Không tìm thấy cuộc trò chuyện nào' : 'Chưa có cuộc trò chuyện nào'}
+            description={
+              searchQuery
+                ? `Không có tin nhắn nào khớp với "${searchQuery}"`
+                : 'Hãy tìm kiếm bạn bè hoặc gửi lời mời để bắt đầu trò chuyện thời gian thực 1-1!'
+            }
+            actionTitle="+ Bắt đầu trò chuyện mới"
+            onAction={onOpenSearch}
+          />
         </View>
       )}
     </SafeAreaView>
@@ -370,76 +394,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
   },
   avatarButton: {
-    marginRight: 12,
-  },
-  avatarImg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 2,
-    borderColor: '#3b82f6',
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#3b82f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#60a5fa',
-  },
-  avatarText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    marginRight: Spacing.sm,
   },
   topBarCenter: {
     flex: 1,
   },
   appTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#f8fafc',
-  },
-  userStatus: {
-    fontSize: 12,
-    color: '#22c55e',
-    fontWeight: '500',
   },
   topBarRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1e293b',
+    width: 38,
+    height: 38,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
     position: 'relative',
   },
   bellBadge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
+    top: -2,
+    right: -2,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#ef4444',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
@@ -449,63 +442,43 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
   },
-  iconText: {
-    fontSize: 18,
-  },
   searchContainer: {
-    paddingHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 12,
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#334155',
   },
   searchIcon: {
-    marginRight: 8,
-    fontSize: 16,
+    marginRight: Spacing.xs,
   },
   searchInput: {
     flex: 1,
-    color: '#f8fafc',
-    fontSize: 14,
-  },
-  clearText: {
-    color: '#94a3b8',
-    fontSize: 16,
-    paddingHorizontal: 6,
+    padding: 0,
+    margin: 0,
   },
   quickActions: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 10,
-    marginBottom: 16,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   actionChip: {
-    backgroundColor: '#1e293b',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: '#334155',
-  },
-  actionChipActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
   },
   actionChipText: {
-    color: '#94a3b8',
-    fontSize: 13,
     fontWeight: '500',
   },
   actionChipTextActive: {
-    color: '#ffffff',
     fontWeight: '600',
   },
   loadingContainer: {
@@ -514,41 +487,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
   },
   conversationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: '#1e293b',
-    marginBottom: 10,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#334155',
-  },
-  convAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  convAvatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#3b82f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  convAvatarText: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
   },
   convContent: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: Spacing.md,
   },
   convTopRow: {
     flexDirection: 'row',
@@ -557,15 +510,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   peerName: {
-    color: '#f8fafc',
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
-    marginRight: 8,
-  },
-  convTime: {
-    color: '#94a3b8',
-    fontSize: 12,
+    marginRight: Spacing.xs,
   },
   convBottomRow: {
     flexDirection: 'row',
@@ -573,18 +521,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lastMessageText: {
-    color: '#94a3b8',
     fontSize: 13,
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.xs,
   },
   lastMessageUnread: {
-    color: '#f8fafc',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   unreadBadge: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
+    borderRadius: Radius.pill,
     minWidth: 20,
     height: 20,
     alignItems: 'center',
@@ -600,45 +545,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#1e293b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 20,
-  },
-  emptyIcon: {
-    fontSize: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#f8fafc',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
-  },
-  startChatButton: {
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    borderRadius: 12,
-  },
-  startChatButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
+    paddingHorizontal: Spacing.xl,
   },
 });

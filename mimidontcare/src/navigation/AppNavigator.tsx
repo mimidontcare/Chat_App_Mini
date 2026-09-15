@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,16 +18,11 @@ import {
   RegisterScreen,
 } from '../screens';
 import api from '../services/api';
-import {
-  MOCK_CONVERSATIONS,
-  MOCK_FRIEND_REQUESTS,
-  MockConversation,
-  MockUser,
-} from '../constants/mockData';
+import { getSocket } from '../services/socket';
 
 type ActiveScreen =
   | { type: 'tabs'; tab: 'chats' | 'friends' | 'notifications' | 'profile' }
-  | { type: 'chat'; conversation: MockConversation }
+  | { type: 'chat'; conversation: any }
   | { type: 'search' }
   | { type: 'friendRequests' }
   | { type: 'messageRequests' }
@@ -38,6 +33,9 @@ export const AppNavigator: React.FC = () => {
   const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+
+  const [friendRequestsCount, setFriendRequestsCount] = useState(0);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   // Auth local state for toggling between Login and Register
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -52,6 +50,37 @@ export const AppNavigator: React.FC = () => {
   });
 
   const isAuthenticated = !!user || isDemoActive;
+
+  // Cập nhật số lượng thông báo & lời mời kết bạn từ backend
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const fetchBadgeCounts = async () => {
+      try {
+        const [notifRes, friendRes] = await Promise.all([
+          api.get('/notifications/unread-count').catch(() => ({ data: { unread_count: 0 } })),
+          api.get('/friends/requests').catch(() => ({ data: { requests: [] } })),
+        ]);
+        setUnreadNotificationsCount(notifRes.data?.unread_count || 0);
+        setFriendRequestsCount(friendRes.data?.requests?.length || 0);
+      } catch {
+        // bỏ qua
+      }
+    };
+
+    fetchBadgeCounts();
+
+    const socket = getSocket();
+    if (socket) {
+      const handleNewNotification = () => {
+        fetchBadgeCounts();
+      };
+      socket.on('new_notification', handleNewNotification);
+      return () => {
+        socket.off('new_notification', handleNewNotification);
+      };
+    }
+  }, [isAuthenticated, currentScreen]);
 
   // Render Auth flow if not logged in
   if (!isAuthenticated) {
@@ -149,8 +178,6 @@ export const AppNavigator: React.FC = () => {
 
   // Bottom Tab Screens
   const activeTab = currentScreen.tab;
-  const unreadTotal = MOCK_CONVERSATIONS.reduce((sum, c) => sum + c.unread_count, 0);
-  const friendRequestsCount = MOCK_FRIEND_REQUESTS.length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -216,11 +243,6 @@ export const AppNavigator: React.FC = () => {
               size={24}
               color={activeTab === 'chats' ? colors.primary : colors.textSecondary}
             />
-            {unreadTotal > 0 && (
-              <View style={[styles.tabBadge, { backgroundColor: colors.unreadBadge }]}>
-                <Text style={styles.tabBadgeText}>{unreadTotal}</Text>
-              </View>
-            )}
           </View>
           <Text
             style={[
@@ -231,7 +253,7 @@ export const AppNavigator: React.FC = () => {
               },
             ]}
           >
-            Chats
+            Đoạn chat
           </Text>
         </Pressable>
 
@@ -264,7 +286,7 @@ export const AppNavigator: React.FC = () => {
               },
             ]}
           >
-            Friends
+            Bạn bè
           </Text>
         </Pressable>
 
@@ -282,6 +304,11 @@ export const AppNavigator: React.FC = () => {
               size={24}
               color={activeTab === 'notifications' ? colors.primary : colors.textSecondary}
             />
+            {unreadNotificationsCount > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: colors.unreadBadge }]}>
+                <Text style={styles.tabBadgeText}>{unreadNotificationsCount}</Text>
+              </View>
+            )}
           </View>
           <Text
             style={[

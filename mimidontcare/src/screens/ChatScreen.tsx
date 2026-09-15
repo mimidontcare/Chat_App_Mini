@@ -20,6 +20,7 @@ import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../constants/theme';
 import { Avatar, ChatBubble, TypingIndicator } from '../components/common';
 import api, { BASE_URL } from '../services/api';
+import { formatMessageTime } from '../utils/date';
 
 import {
   getSocket,
@@ -335,15 +336,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       }
     } catch (e) {
       console.error('Lỗi chọn/gửi ảnh:', e);
-    }
-  };
-
-  const formatMessageTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
     }
   };
 
