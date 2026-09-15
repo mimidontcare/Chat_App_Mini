@@ -10,6 +10,8 @@ router.get('/', chatController.getConversations);
 router.get('/requests', chatController.getMessageRequests);
 router.post('/init', chatController.initConversation);
 router.post('/request/:id/accept', chatController.acceptMessageRequest);
+router.post('/request/:id/reject', chatController.rejectMessageRequest);
+router.delete('/request/:id', chatController.rejectMessageRequest);
 router.get('/:id/messages', chatController.getMessages);
 router.put('/:id/read', chatController.markAsRead);
 

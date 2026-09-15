@@ -206,6 +206,28 @@ const conversationModel = {
     return { success: true, message: 'Đã chấp nhận tin nhắn chờ!' };
   },
 
+  // 5. Từ chối / Xóa tin nhắn chờ từ người lạ
+  async rejectMessageRequest(conversationId, userId) {
+    // Xóa toàn bộ tin nhắn thuộc đoạn chat này
+    await db.query('DELETE FROM messages WHERE conversation_id = ?', [conversationId]);
+
+    // Xóa record cuộc hội thoại
+    const [result] = await db.query(
+      `DELETE FROM conversations 
+       WHERE id = ? 
+         AND (user1_id = ? OR user2_id = ?) 
+         AND status = 'message_request'
+         AND request_sender_id != ?`,
+      [conversationId, userId, userId, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error('Tin nhắn chờ không tồn tại hoặc bạn không có quyền xóa!');
+    }
+
+    return { success: true, message: 'Đã xóa tin nhắn chờ thành công!' };
+  },
+
   // 5. Lấy lịch sử tin nhắn trong cuộc hội thoại
   async getMessages(conversationId, userId, limit = 50, offset = 0) {
     // Xác thực người dùng có thuộc đoạn chat này không

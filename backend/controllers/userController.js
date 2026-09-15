@@ -1,4 +1,5 @@
 const userModel = require('../models/userModel');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 const userController = {
   // Lấy thông tin user theo ID
@@ -87,8 +88,16 @@ const userController = {
         });
       }
 
-      // Tạo đường dẫn ảnh tĩnh phục vụ từ server
-      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      // Tạo đường dẫn ảnh tĩnh phục vụ từ server (hoặc Cloudinary nếu cấu hình)
+      let avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      try {
+        const cloudUpload = await uploadToCloudinary(req.file.path, 'chat_app/avatars');
+        if (cloudUpload.url) {
+          avatarUrl = cloudUpload.url;
+        }
+      } catch (err) {
+        console.warn('Lỗi upload avatar lên Cloudinary, dùng local:', err.message);
+      }
 
       // Cập nhật vào MySQL
       const updatedUser = await userModel.updateProfile(currentUserId, {

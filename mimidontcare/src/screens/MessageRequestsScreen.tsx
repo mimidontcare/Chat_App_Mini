@@ -55,10 +55,17 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
   };
 
   // Chấp nhận tin nhắn chờ
-  const handleAccept = async (id: number) => {
+  const handleAccept = async (conv: any) => {
     try {
-      setRequests((prev) => prev.filter((r) => r.id !== id));
-      await api.post(`/conversations/request/${id}/accept`);
+      setRequests((prev) => prev.filter((r) => r.id !== conv.id));
+      await api.post(`/conversations/request/${conv.id}/accept`);
+      Alert.alert('Thành công', 'Đã chuyển cuộc trò chuyện vào hộp thư chính!', [
+        {
+          text: 'Mở chat ngay',
+          onPress: () => onOpenChat(conv),
+        },
+        { text: 'Đóng', style: 'cancel' },
+      ]);
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Không thể chấp nhận tin nhắn chờ.');
       await fetchMessageRequests();
@@ -67,7 +74,26 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
 
   // Ẩn / từ chối tin nhắn chờ
   const handleDelete = (id: number) => {
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+    Alert.alert(
+      'Xóa tin nhắn chờ',
+      'Bạn có chắc chắn muốn xóa tin nhắn chờ này? Lịch sử tin nhắn sẽ bị xóa vĩnh viễn.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setRequests((prev) => prev.filter((r) => r.id !== id));
+              await api.post(`/conversations/request/${id}/reject`);
+            } catch (err: any) {
+              Alert.alert('Lỗi', err.message || 'Không thể xóa tin nhắn chờ.');
+              await fetchMessageRequests();
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -160,7 +186,7 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
               <View style={[styles.cardActions, { borderTopColor: colors.borderLight }]}>
                 <Button
                   title="Chấp nhận"
-                  onPress={() => handleAccept(item.id)}
+                  onPress={() => handleAccept(item)}
                   variant="primary"
                   size="sm"
                   style={styles.actionBtn}

@@ -1,4 +1,5 @@
 const conversationModel = require('../models/conversationModel');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 const chatController = {
   // Lấy danh sách đoạn chat chính (Home)
@@ -91,6 +92,27 @@ const chatController = {
     }
   },
 
+  // Từ chối / Xóa tin nhắn chờ từ người lạ
+  async rejectMessageRequest(req, res) {
+    try {
+      const userId = req.user.id;
+      const { id } = req.params;
+
+      const result = await conversationModel.rejectMessageRequest(Number(id), userId);
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('Lỗi API rejectMessageRequest:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Lỗi khi từ chối tin nhắn chờ!',
+      });
+    }
+  },
+
   // Lấy lịch sử tin nhắn của một đoạn chat
   async getMessages(req, res) {
     try {
@@ -178,7 +200,16 @@ const chatController = {
         });
       }
 
-      const imageUrl = `/uploads/avatars/${req.file.filename}`;
+      // 1. Thử upload lên Cloudinary (nếu có cấu hình trong .env)
+      let imageUrl = `/uploads/chat/${req.file.filename}`;
+      try {
+        const cloudUpload = await uploadToCloudinary(req.file.path, 'chat_app/chat');
+        if (cloudUpload.url) {
+          imageUrl = cloudUpload.url;
+        }
+      } catch (err) {
+        console.warn('Lỗi upload Cloudinary, dùng file local:', err.message);
+      }
 
       const newMessage = await conversationModel.sendMessage(
         Number(conversation_id),
