@@ -16,6 +16,7 @@ import {
   LoginScreen,
   RegisterScreen,
 } from '../screens';
+import api from '../services/api';
 import {
   MOCK_CONVERSATIONS,
   MOCK_FRIEND_REQUESTS,
@@ -63,6 +64,26 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
+  const handleStartChatWithPeer = async (peer: any) => {
+    try {
+      const res = await api.post('/conversations/init', { peer_id: peer.id });
+      if (res.data?.success && res.data?.conversation) {
+        setCurrentScreen({ type: 'chat', conversation: res.data.conversation });
+        return;
+      }
+    } catch (err) {
+      console.error('Lỗi khởi tạo cuộc trò chuyện:', err);
+    }
+
+    const fallbackConv = {
+      id: Date.now(),
+      peer,
+      last_message: null,
+      unread_count: 0,
+    };
+    setCurrentScreen({ type: 'chat', conversation: fallbackConv as any });
+  };
+
   // Active Chat Screen
   if (currentScreen.type === 'chat') {
     return (
@@ -78,21 +99,7 @@ export const AppNavigator: React.FC = () => {
     return (
       <SearchScreen
         onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
-        onStartChat={(peer: MockUser) => {
-          const conv: MockConversation = {
-            id: Date.now(),
-            peer,
-            last_message: {
-              content: 'Say hello!',
-              message_type: 'text',
-              sender_id: peer.id,
-              created_at: 'Just now',
-              is_read: true,
-            },
-            unread_count: 0,
-          };
-          setCurrentScreen({ type: 'chat', conversation: conv });
-        }}
+        onStartChat={handleStartChatWithPeer}
       />
     );
   }
@@ -102,21 +109,7 @@ export const AppNavigator: React.FC = () => {
     return (
       <FriendRequestsScreen
         onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
-        onStartChat={(peer: any) => {
-          const conv: MockConversation = {
-            id: Date.now(),
-            peer,
-            last_message: {
-              content: 'Say hello!',
-              message_type: 'text',
-              sender_id: peer.id,
-              created_at: 'Just now',
-              is_read: true,
-            },
-            unread_count: 0,
-          };
-          setCurrentScreen({ type: 'chat', conversation: conv });
-        }}
+        onStartChat={handleStartChatWithPeer}
       />
     );
   }
@@ -162,21 +155,7 @@ export const AppNavigator: React.FC = () => {
 
         {activeTab === 'friends' && (
           <FriendRequestsScreen
-            onStartChat={(peer: any) => {
-              const conv: MockConversation = {
-                id: Date.now(),
-                peer,
-                last_message: {
-                  content: 'Say hello!',
-                  message_type: 'text',
-                  sender_id: peer.id,
-                  created_at: 'Just now',
-                  is_read: true,
-                },
-                unread_count: 0,
-              };
-              setCurrentScreen({ type: 'chat', conversation: conv });
-            }}
+            onStartChat={handleStartChatWithPeer}
           />
         )}
 
