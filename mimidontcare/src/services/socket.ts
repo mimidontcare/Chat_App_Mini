@@ -18,6 +18,11 @@ export const initSocket = (token?: string | null, userId?: number): Socket => {
   socket = io(SOCKET_URL, {
     transports: ['websocket'],
     autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 10000,
     auth: {
       token: token || undefined,
     },
@@ -30,12 +35,27 @@ export const initSocket = (token?: string | null, userId?: number): Socket => {
     }
   });
 
+  socket.on('reconnect', (attemptNumber) => {
+    console.log(`🔄 Socket.IO reconnected sau ${attemptNumber} lần thử:`, socket?.id);
+    if (userId) {
+      socket?.emit('setup', { token, userId });
+    }
+  });
+
   socket.on('disconnect', (reason) => {
     console.log('🔌 Socket.IO disconnected:', reason);
   });
 
   socket.on('connect_error', (error) => {
     console.warn('⚠️ Socket connection error:', error.message);
+  });
+
+  socket.on('reconnect_error', (error) => {
+    console.warn('⚠️ Socket reconnect attempt error:', error.message);
+  });
+
+  socket.on('reconnect_failed', () => {
+    console.warn('❌ Socket reconnection failed hoàn toàn');
   });
 
   return socket;

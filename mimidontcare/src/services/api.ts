@@ -36,12 +36,51 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Trích xuất thông báo lỗi rõ ràng từ response của Backend
+// Trích xuất thông báo lỗi rõ ràng và xử lý lỗi mạng / JWT hết hạn
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    const customMessage =
-      error.response?.data?.message || error.message || 'Lỗi kết nối máy chủ!';
+  async (error) => {
+    // 1. Xử lý timeout
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      return Promise.reject(new Error('Yêu cầu đã quá thời gian phản hồi (Network timeout). Vui lòng thử lại!'));
+    }
+
+    // 2. Xử lý mất mạng / server không phản hồi
+    if (!error.response) {
+      return Promise.reject(new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng!'));
+    }
+
+    const { status, data } = error.response;
+
+    // 3. Xử lý token hết hạn (401)
+    if (status === 401) {
+      if (data?.code === 'TOKEN_EXPIRED') {
+        try {
+          await AsyncStorage.multiRemove(['@auth_token', '@auth_user']);
+        } catch {
+          // bỏ qua
+        }
+        return Promise.reject(new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!'));
+      }
+      return Promise.reject(new Error(data?.message || 'Phiên làm việc không hợp lệ, vui lòng đăng nhập lại!'));
+    }
+
+    // 4. Xử lý 403 Forbidden
+    if (status === 403) {
+      return Promise.reject(new Error(data?.message || 'Bạn không có quyền truy cập chức năng này!'));
+    }
+
+    // 5. Xử lý 404 Not Found
+    if (status === 404) {
+      return Promise.reject(new Error(data?.message || 'Không tìm thấy dữ liệu yêu cầu!'));
+    }
+
+    // 6. Xử lý 500 Internal Server Error
+    if (status >= 500) {
+      return Promise.reject(new Error(data?.message || 'Máy chủ gặp sự cố nội bộ. Vui lòng thử lại sau!'));
+    }
+
+    const customMessage = data?.message || error.message || 'Đã xảy ra lỗi không xác định!';
     return Promise.reject(new Error(customMessage));
   }
 );

@@ -19,12 +19,14 @@ const authMiddleware = (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
-        message: 'Token đã hết hạn. Vui lòng đăng nhập lại!',
+        code: 'TOKEN_EXPIRED',
+        message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!',
       });
     }
     return res.status(401).json({
       success: false,
-      message: 'Token không hợp lệ!',
+      code: 'INVALID_TOKEN',
+      message: 'Token xác thực không hợp lệ!',
     });
   }
 };

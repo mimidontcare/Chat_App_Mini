@@ -51,6 +51,45 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Chat App Backend API is running with Socket.IO!' });
 });
 
+// 404 Route Not Found Middleware
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Đường dẫn API ${req.method} ${req.originalUrl} không tồn tại (404 Not Found)!`,
+  });
+});
+
+// Global Error Handler Middleware
+app.use((err, req, res, next) => {
+  // Xử lý lỗi Multer Upload
+  if (err.name === 'MulterError' || err.code === 'LIMIT_FILE_SIZE') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Kích thước file ảnh quá lớn! Vui lòng chọn ảnh dung lượng nhỏ hơn (tối đa 10MB).',
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: `Lỗi tải file: ${err.message}`,
+    });
+  }
+
+  // Xử lý lỗi filter định dạng file ảnh
+  if (err.message && err.message.includes('định dạng file ảnh')) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+
+  console.error('💥 Unhandled Server Error:', err.message || err);
+  return res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Đã xảy ra lỗi máy chủ nội bộ!',
+  });
+});
+
 // Test connection and start server
 const startServer = async () => {
   try {
