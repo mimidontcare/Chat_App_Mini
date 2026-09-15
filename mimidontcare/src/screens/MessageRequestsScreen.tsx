@@ -1,21 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
 import { Avatar, Button, EmptyState } from '../components/common';
-import { MOCK_MESSAGE_REQUESTS, MockConversation } from '../constants/mockData';
+import api from '../services/api';
 
 interface MessageRequestsScreenProps {
   onBack: () => void;
-  onOpenChat: (conversation: MockConversation) => void;
+  onOpenChat: (conversation: any) => void;
 }
 
 export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
@@ -23,12 +26,46 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
   onOpenChat,
 }) => {
   const { colors } = useTheme();
-  const [requests, setRequests] = useState<MockConversation[]>(MOCK_MESSAGE_REQUESTS);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleAccept = (id: number) => {
-    setRequests((prev) => prev.filter((r) => r.id !== id));
+  // Lấy danh sách tin nhắn chờ từ Backend
+  const fetchMessageRequests = useCallback(async () => {
+    try {
+      const res = await api.get('/conversations/requests');
+      if (res.data?.success) {
+        setRequests(res.data.requests || []);
+      }
+    } catch (err) {
+      console.error('Lỗi lấy danh sách tin nhắn chờ:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMessageRequests();
+  }, [fetchMessageRequests]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchMessageRequests();
+    setIsRefreshing(false);
   };
 
+  // Chấp nhận tin nhắn chờ
+  const handleAccept = async (id: number) => {
+    try {
+      setRequests((prev) => prev.filter((r) => r.id !== id));
+      await api.post(`/conversations/request/${id}/accept`);
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.message || 'Không thể chấp nhận tin nhắn chờ.');
+      await fetchMessageRequests();
+    }
+  };
+
+  // Ẩn / từ chối tin nhắn chờ
   const handleDelete = (id: number) => {
     setRequests((prev) => prev.filter((r) => r.id !== id));
   };
@@ -47,7 +84,7 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
         <Text style={[Typography.headline, styles.headerTitle, { color: colors.textPrimary }]}>
-          Message Requests
+          Tin Nhắn Chờ
         </Text>
         <View style={styles.headerRightPlaceholder} />
       </View>
@@ -61,80 +98,93 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
       >
         <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
         <Text style={[Typography.caption, styles.noticeText, { color: colors.textSecondary }]}>
-          People who aren't on your friends list can send message requests here. They won't know you've seen their message until you accept.
+          Những người chưa có trong danh sách bạn bè sẽ xuất hiện tại đây. Họ sẽ không biết bạn đã đọc tin nhắn cho đến khi bạn bấm Chấp nhận.
         </Text>
       </View>
 
-      {/* Requests List */}
-      <FlatList
-        data={requests}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.requestCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.sm,
-            ]}
-          >
-            <Pressable
-              onPress={() => onOpenChat(item)}
-              style={styles.cardHeader}
-              android_ripple={{ color: colors.surfaceSecondary }}
+      {/* Loading */}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        /* Requests List */
+        <FlatList
+          data={requests}
+          keyExtractor={(item) => item.id.toString()}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+          }
+          renderItem={({ item }) => (
+            <View
+              style={[
+                styles.requestCard,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                Shadows.sm,
+              ]}
             >
-              <Avatar
-                uri={item.peer.avatar_url}
-                name={item.peer.username}
-                size="md"
-                isOnline={item.peer.is_online}
-                showStatus
-              />
-              <View style={styles.cardInfo}>
-                <View style={styles.nameRow}>
-                  <Text style={[Typography.title, styles.senderName, { color: colors.textPrimary }]}>
-                    {item.peer.username}
-                  </Text>
-                  <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                    {item.last_message.created_at}
+              <Pressable
+                onPress={() => onOpenChat(item)}
+                style={styles.cardHeader}
+                android_ripple={{ color: colors.surfaceSecondary }}
+              >
+                <Avatar
+                  uri={item.peer.avatar_url}
+                  name={item.peer.username}
+                  size="md"
+                />
+                <View style={styles.cardInfo}>
+                  <View style={styles.nameRow}>
+                    <Text style={[Typography.title, styles.senderName, { color: colors.textPrimary }]}>
+                      {item.peer.username}
+                    </Text>
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      {item.last_message?.created_at
+                        ? new Date(item.last_message.created_at).toLocaleTimeString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : ''}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[Typography.bodyMedium, styles.previewText, { color: colors.textSecondary }]}
+                    numberOfLines={2}
+                  >
+                    {item.last_message?.content || 'Đã gửi một tin nhắn...'}
                   </Text>
                 </View>
-                <Text
-                  style={[Typography.body, styles.messageContent, { color: colors.textPrimary }]}
-                  numberOfLines={2}
-                >
-                  {item.last_message.content}
-                </Text>
-              </View>
-            </Pressable>
+              </Pressable>
 
-            {/* Accept / Delete Action Bar */}
-            <View style={[styles.actionRow, { borderTopColor: colors.borderLight }]}>
-              <Button
-                title="Delete"
-                onPress={() => handleDelete(item.id)}
-                variant="secondary"
-                size="sm"
-                style={styles.actionBtn}
-              />
-              <Button
-                title="Accept"
-                onPress={() => handleAccept(item.id)}
-                variant="primary"
-                size="sm"
-                style={styles.actionBtn}
-              />
+              {/* Action Buttons */}
+              <View style={[styles.cardActions, { borderTopColor: colors.borderLight }]}>
+                <Button
+                  title="Chấp nhận"
+                  onPress={() => handleAccept(item.id)}
+                  variant="primary"
+                  size="sm"
+                  style={styles.actionBtn}
+                />
+                <Button
+                  title="Xóa"
+                  onPress={() => handleDelete(item.id)}
+                  variant="secondary"
+                  size="sm"
+                  style={styles.actionBtn}
+                />
+              </View>
             </View>
-          </View>
-        )}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <EmptyState
-            icon="mail-open-outline"
-            title="No Message Requests"
-            description="You don't have any incoming messages from people outside your friends list."
-          />
-        }
-      />
+          )}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <EmptyState
+              icon="mail-unread-outline"
+              title="Không có tin nhắn chờ"
+              description="Hộp thư tin nhắn chờ của bạn hiện đang trống."
+            />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -156,25 +206,32 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
+    fontWeight: '700',
   },
   headerRightPlaceholder: {
     width: 32,
   },
   noticeBanner: {
     flexDirection: 'row',
-    margin: Spacing.lg,
-    marginBottom: Spacing.sm,
+    alignItems: 'flex-start',
+    margin: Spacing.md,
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
-    gap: Spacing.sm,
   },
   noticeText: {
     flex: 1,
+    marginLeft: Spacing.sm,
     lineHeight: 18,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   listContent: {
-    padding: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.xl,
     flexGrow: 1,
   },
   requestCard: {
@@ -190,25 +247,25 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
     marginLeft: Spacing.md,
+    justifyContent: 'center',
   },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
   senderName: {
     fontSize: 15,
   },
-  messageContent: {
-    lineHeight: 20,
+  previewText: {
+    lineHeight: 18,
   },
-  actionRow: {
+  cardActions: {
     flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
     borderTopWidth: 1,
-    gap: Spacing.md,
   },
   actionBtn: {
     flex: 1,

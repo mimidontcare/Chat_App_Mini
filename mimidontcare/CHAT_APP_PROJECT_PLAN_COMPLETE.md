@@ -5,12 +5,12 @@
 ---
 
 ## I. THÔNG TIN & CÔNG NGHỆ BẮT BUỘC
-- **Frontend:** React Native, JavaScript.
+- **Frontend:** React Native, TypeScript.
 - **Backend:** Node.js, Express.js.
 - **Database:** MySQL.
 - **Realtime:** Socket.IO.
 - **Authentication:** JWT, bcryptjs.
-- **Image Storage:** Cloudinary.
+- **Image Storage:** Cloudinary. 
 
 ## II. DANH SÁCH CHỨC NĂNG BẮT BUỘC & PHÂN LOẠI ƯU TIÊN
 ### 1. MUST HAVE (Bắt buộc phải có để chạy được luồng chính)
@@ -156,7 +156,7 @@ chat-app/
 > **Nguyên tắc:** Chưa code tất cả cùng lúc. Hoàn thành từng Phase, test xong Phase hiện tại rồi mới chuyển sang Phase tiếp theo.
 
 ### PHASE 0 — Chuẩn bị môi trường & Repository
-- Cài/kiểm tra Node.js, npm, JDK/Android Studio nếu chạy Android.
+- Cài/kiểm tra Node.js, npm.
 - Khởi tạo React Native project.
 - Khởi tạo Node.js + Express backend.
 - Tạo Git repository và `.gitignore`.

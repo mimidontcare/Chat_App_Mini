@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,76 +9,146 @@ import {
   Platform,
   TextInput,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../constants/theme';
 import { Avatar, ChatBubble, TypingIndicator } from '../components/common';
-import {
-  CURRENT_USER,
-  MockConversation,
-  MockMessage,
-  MOCK_MESSAGES_CONV_101,
-} from '../constants/mockData';
+import api, { BASE_URL } from '../services/api';
+
+export interface ChatMessageItem {
+  id: number;
+  conversation_id: number;
+  sender_id: number;
+  message_type: 'text' | 'image';
+  content: string;
+  image_url: string | null;
+  is_read: boolean;
+  created_at: string;
+}
 
 interface ChatScreenProps {
-  conversation: MockConversation;
+  conversation: {
+    id: number;
+    peer: {
+      id: number;
+      username: string;
+      email?: string | null;
+      avatar_url?: string | null;
+      is_online?: boolean;
+      last_seen?: string;
+    };
+  };
   onBack: () => void;
 }
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) => {
+  const { user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const [messages, setMessages] = useState<MockMessage[]>(MOCK_MESSAGES_CONV_101);
+
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
 
-  const handleSendText = () => {
-    if (!inputText.trim()) return;
-
-    const newMessage: MockMessage = {
-      id: Date.now(),
-      conversation_id: conversation.id,
-      sender_id: CURRENT_USER.id,
-      message_type: 'text',
-      content: inputText.trim(),
-      is_read: false,
-      created_at: 'Just now',
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText('');
-
-    // Simulate peer replying with typing animation after 1.2s
-    setTimeout(() => {
-      setIsPeerTyping(true);
-      setTimeout(() => {
-        setIsPeerTyping(false);
-        const replyMessage: MockMessage = {
-          id: Date.now() + 1,
-          conversation_id: conversation.id,
-          sender_id: conversation.peer.id,
-          message_type: 'text',
-          content: 'Got it! Thanks for the update 👍',
-          is_read: true,
-          created_at: 'Just now',
-        };
-        setMessages((prev) => [...prev, replyMessage]);
-      }, 2500);
-    }, 1200);
+  // Helper chuyển đổi URL ảnh tương đối sang URL đầy đủ của server
+  const resolveImageUrl = (url: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('/uploads')) {
+      const serverOrigin = BASE_URL.replace('/api', '');
+      return `${serverOrigin}${url}`;
+    }
+    return url;
   };
 
+  // 1. Tải lịch sử tin nhắn từ Backend
+  const fetchMessages = useCallback(async () => {
+    try {
+      const res = await api.get(`/conversations/${conversation.id}/messages`);
+      if (res.data?.success) {
+        setMessages(res.data.messages || []);
+      }
+    } catch (err) {
+      console.error('Lỗi tải lịch sử tin nhắn:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [conversation.id]);
+
+  // 2. Đánh dấu đã đọc
+  const markAsRead = useCallback(async () => {
+    try {
+      await api.put(`/conversations/${conversation.id}/read`);
+    } catch (err) {
+      // Bỏ qua lỗi đánh dấu đã đọc
+    }
+  }, [conversation.id]);
+
+  useEffect(() => {
+    fetchMessages();
+    markAsRead();
+  }, [fetchMessages, markAsRead]);
+
+  // 3. Gửi tin nhắn Text
+  const handleSendText = async () => {
+    const textToSend = inputText.trim();
+    if (!textToSend || isSending) return;
+
+    setInputText('');
+
+    // Optimistic UI: hiển thị tin nhắn ngay
+    const tempId = Date.now();
+    const optimisticMsg: ChatMessageItem = {
+      id: tempId,
+      conversation_id: conversation.id,
+      sender_id: user?.id || 0,
+      message_type: 'text',
+      content: textToSend,
+      image_url: null,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+
+    try {
+      setIsSending(true);
+      const res = await api.post('/messages', {
+        conversation_id: conversation.id,
+        content: textToSend,
+        message_type: 'text',
+      });
+
+      if (res.data?.success && res.data?.data) {
+        // Cập nhật ID thật từ server
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? res.data.data : m))
+        );
+      }
+    } catch (err: any) {
+      console.error('Lỗi gửi tin nhắn:', err);
+      // Đánh dấu hoặc giữ tin nhắn
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // 4. Chọn và gửi ảnh (Phase 7 & 10)
   const handlePickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permissionResult.granted) {
-        alert('Permission to access photos is required to send images.');
+        alert('Cần cấp quyền truy cập thư viện ảnh để gửi hình ảnh.');
         return;
       }
 
@@ -90,20 +160,58 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
         const imageUri = result.assets[0].uri;
-        const newImageMsg: MockMessage = {
-          id: Date.now(),
+
+        // Optimistic UI
+        const tempId = Date.now();
+        const optimisticMsg: ChatMessageItem = {
+          id: tempId,
           conversation_id: conversation.id,
-          sender_id: CURRENT_USER.id,
+          sender_id: user?.id || 0,
           message_type: 'image',
           content: '',
           image_url: imageUri,
           is_read: false,
-          created_at: 'Just now',
+          created_at: new Date().toISOString(),
         };
-        setMessages((prev) => [...prev, newImageMsg]);
+
+        setMessages((prev) => [...prev, optimisticMsg]);
+
+        // Upload lên Backend
+        const formData = new FormData();
+        const filename = imageUri.split('/').pop() || 'chat_img.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        formData.append('conversation_id', conversation.id.toString());
+        formData.append('image', {
+          uri: imageUri,
+          name: filename,
+          type,
+        } as any);
+
+        const uploadRes = await api.post('/messages/image', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (uploadRes.data?.success && uploadRes.data?.data) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? uploadRes.data.data : m))
+          );
+        }
       }
     } catch (e) {
-      console.log('Image picker error:', e);
+      console.error('Lỗi chọn/gửi ảnh:', e);
+    }
+  };
+
+  const formatMessageTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
     }
   };
 
@@ -116,7 +224,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
           style={styles.backBtn}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Back to chats"
+          accessibilityLabel="Trở về danh sách đoạn chat"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
@@ -134,24 +242,18 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
               {conversation.peer.username}
             </Text>
             <Text style={[Typography.caption, { color: conversation.peer.is_online ? colors.online : colors.textSecondary }]}>
-              {conversation.peer.is_online ? 'Active now' : conversation.peer.last_seen || 'Offline'}
+              {conversation.peer.is_online ? 'Đang hoạt động' : 'Ngoại tuyến'}
             </Text>
           </View>
         </View>
 
         <View style={styles.headerActions}>
           <Pressable
-            onPress={() => setIsPeerTyping(!isPeerTyping)}
+            onPress={() => fetchMessages()}
             style={styles.headerActionBtn}
             hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Toggle simulated typing indicator"
           >
-            <Ionicons
-              name={isPeerTyping ? 'flash' : 'flash-outline'}
-              size={20}
-              color={isPeerTyping ? colors.warning : colors.textSecondary}
-            />
+            <Ionicons name="refresh-outline" size={20} color={colors.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -162,24 +264,44 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
         style={styles.flexContainer}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <ChatBubble
-              message={item}
-              isMine={item.sender_id === CURRENT_USER.id}
-              onImagePress={(url) => setPreviewImageUrl(url)}
-            />
-          )}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          ListFooterComponent={
-            isPeerTyping ? <TypingIndicator username={conversation.peer.username} /> : null
-          }
-        />
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 8 }]}>
+              Đang tải tin nhắn...
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <ChatBubble
+                message={{
+                  ...item,
+                  image_url: resolveImageUrl(item.image_url) || undefined,
+                  created_at: formatMessageTime(item.created_at),
+                } as any}
+                isMine={item.sender_id === user?.id}
+                onImagePress={(url) => setPreviewImageUrl(url)}
+              />
+            )}
+            contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            ListEmptyComponent={
+              <View style={styles.emptyMessages}>
+                <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>
+                  Chưa có tin nhắn nào trong cuộc trò chuyện này.{'\n'}Hãy gửi lời chào đầu tiên! 👋
+                </Text>
+              </View>
+            }
+            ListFooterComponent={
+              isPeerTyping ? <TypingIndicator username={conversation.peer.username} /> : null
+            }
+          />
+        )}
 
         {/* Bottom Input Composer */}
         <View
@@ -192,16 +314,18 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             },
           ]}
         >
+          {/* Nút gửi ảnh */}
           <Pressable
             onPress={handlePickImage}
             style={styles.attachBtn}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Pick photo"
+            accessibilityLabel="Chọn hình ảnh"
           >
             <Ionicons name="image-outline" size={24} color={colors.primary} />
           </Pressable>
 
+          {/* Ô nhập nội dung tin nhắn */}
           <View
             style={[
               styles.inputContainer,
@@ -210,7 +334,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
           >
             <TextInput
               style={[Typography.body, styles.textInput, { color: colors.textPrimary }]}
-              placeholder="Write a message..."
+              placeholder="Nhập tin nhắn..."
               placeholderTextColor={colors.textPlaceholder}
               value={inputText}
               onChangeText={setInputText}
@@ -219,6 +343,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             />
           </View>
 
+          {/* Nút gửi tin nhắn */}
           <Pressable
             onPress={handleSendText}
             style={[
@@ -227,16 +352,20 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
                 backgroundColor: inputText.trim().length > 0 ? colors.primary : colors.surfaceSecondary,
               },
             ]}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isSending}
             hitSlop={6}
             accessibilityRole="button"
-            accessibilityLabel="Send message"
+            accessibilityLabel="Gửi tin nhắn"
           >
-            <Ionicons
-              name="send"
-              size={18}
-              color={inputText.trim().length > 0 ? colors.onPrimary : colors.textMuted}
-            />
+            {isSending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name="send"
+                size={18}
+                color={inputText.trim().length > 0 ? colors.onPrimary : colors.textMuted}
+              />
+            )}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -308,8 +437,20 @@ const styles = StyleSheet.create({
   headerActionBtn: {
     padding: Spacing.xs,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   messagesList: {
     paddingVertical: Spacing.md,
+    flexGrow: 1,
+  },
+  emptyMessages: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
   },
   composerBar: {
     flexDirection: 'row',

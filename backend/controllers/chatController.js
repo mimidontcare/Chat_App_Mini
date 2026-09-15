@@ -158,6 +158,48 @@ const chatController = {
     }
   },
 
+  // Gửi tin nhắn ảnh (upload file)
+  async sendImageMessage(req, res) {
+    try {
+      const senderId = req.user.id;
+      const { conversation_id } = req.body;
+
+      if (!conversation_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng cung cấp conversation_id!',
+        });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng chọn file ảnh để gửi!',
+        });
+      }
+
+      const imageUrl = `/uploads/avatars/${req.file.filename}`;
+
+      const newMessage = await conversationModel.sendMessage(
+        Number(conversation_id),
+        senderId,
+        { content: '', message_type: 'image', image_url: imageUrl }
+      );
+
+      return res.status(201).json({
+        success: true,
+        message: 'Gửi ảnh thành công!',
+        data: newMessage,
+      });
+    } catch (error) {
+      console.error('Lỗi API sendImageMessage:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Lỗi khi gửi tin nhắn ảnh!',
+      });
+    }
+  },
+
   // Đánh dấu đã đọc tin nhắn
   async markAsRead(req, res) {
     try {
