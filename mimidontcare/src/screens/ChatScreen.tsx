@@ -272,6 +272,18 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
     }
   };
 
+  // Xử lý phím Enter trên bàn phím: Enter để gửi tin nhắn, Shift + Enter để xuống dòng (hỗ trợ tốt trên Web & Desktop)
+  const handleKeyPress = (e: any) => {
+    if (Platform.OS === 'web') {
+      const isComposing = e.nativeEvent?.isComposing || e.nativeEvent?.keyCode === 229;
+      if (e.nativeEvent?.key === 'Enter' && !e.nativeEvent?.shiftKey && !isComposing) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.nativeEvent?.preventDefault) e.nativeEvent.preventDefault();
+        handleSendText();
+      }
+    }
+  };
+
   // 4. Chọn và gửi ảnh (Phase 7 & 10)
   const handlePickImage = async () => {
     try {
@@ -457,11 +469,28 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             ]}
           >
             <TextInput
-              style={[Typography.body, styles.textInput, { color: colors.textPrimary }]}
+              style={[
+                Typography.body,
+                styles.textInput,
+                { color: colors.textPrimary },
+                Platform.OS === 'web'
+                  ? ({
+                      outlineStyle: 'none',
+                      outlineWidth: 0,
+                      outlineColor: 'transparent',
+                      boxShadow: 'none',
+                    } as any)
+                  : null,
+              ]}
               placeholder="Nhập tin nhắn..."
               placeholderTextColor={colors.textPlaceholder}
               value={inputText}
               onChangeText={handleInputChange}
+              onKeyPress={handleKeyPress}
+              onSubmitEditing={Platform.OS !== 'web' ? handleSendText : undefined}
+              blurOnSubmit={false}
+              returnKeyType="send"
+              enterKeyHint="send"
               multiline
               maxLength={1000}
             />
@@ -600,6 +629,14 @@ const styles = StyleSheet.create({
   textInput: {
     padding: 0,
     margin: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   sendBtn: {
     width: 38,

@@ -3,6 +3,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
 import { useColorScheme } from 'react-native';
 
+import '../global.css';
+
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { AppNavigator } from '@/navigation/AppNavigator';

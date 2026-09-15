@@ -7,6 +7,7 @@ import {
   Pressable,
   TextInputProps,
   ViewStyle,
+  Platform,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../../constants/theme';
@@ -149,6 +150,14 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     paddingVertical: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   rightIcon: {
     marginLeft: Spacing.sm,

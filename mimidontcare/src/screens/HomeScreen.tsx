@@ -475,6 +475,14 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 0,
     margin: 0,
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        } as any)
+      : {}),
   },
   quickActions: {
     flexDirection: 'row',
