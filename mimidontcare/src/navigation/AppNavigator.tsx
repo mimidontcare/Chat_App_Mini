@@ -102,6 +102,21 @@ export const AppNavigator: React.FC = () => {
     return (
       <FriendRequestsScreen
         onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onStartChat={(peer: any) => {
+          const conv: MockConversation = {
+            id: Date.now(),
+            peer,
+            last_message: {
+              content: 'Say hello!',
+              message_type: 'text',
+              sender_id: peer.id,
+              created_at: 'Just now',
+              is_read: true,
+            },
+            unread_count: 0,
+          };
+          setCurrentScreen({ type: 'chat', conversation: conv });
+        }}
       />
     );
   }
@@ -147,7 +162,21 @@ export const AppNavigator: React.FC = () => {
 
         {activeTab === 'friends' && (
           <FriendRequestsScreen
-            onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+            onStartChat={(peer: any) => {
+              const conv: MockConversation = {
+                id: Date.now(),
+                peer,
+                last_message: {
+                  content: 'Say hello!',
+                  message_type: 'text',
+                  sender_id: peer.id,
+                  created_at: 'Just now',
+                  is_read: true,
+                },
+                unread_count: 0,
+              };
+              setCurrentScreen({ type: 'chat', conversation: conv });
+            }}
           />
         )}
 
