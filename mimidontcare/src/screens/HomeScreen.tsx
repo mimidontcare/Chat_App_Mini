@@ -11,6 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
@@ -42,6 +43,7 @@ interface HomeScreenProps {
   onOpenProfile?: () => void;
   onOpenMessageRequests?: () => void;
   onOpenFriendRequests?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -49,9 +51,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenSearch,
   onOpenProfile,
   onOpenMessageRequests,
+  onOpenNotifications,
 }) => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'unread'>('all');
   const [isLoading, setIsLoading] = useState(true);
@@ -71,11 +75,24 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
   }, []);
 
+  // Lấy số lượng thông báo chưa đọc
+  const fetchUnreadNotifCount = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications/unread-count');
+      if (res.data?.success) {
+        setUnreadNotifCount(res.data.unread_count || 0);
+      }
+    } catch {
+      // bỏ qua lỗi
+    }
+  }, []);
+
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+    fetchUnreadNotifCount();
+  }, [fetchConversations, fetchUnreadNotifCount]);
 
-  // Lắng nghe tin nhắn realtime trên Socket để cập nhật danh sách hội thoại
+  // Lắng nghe tin nhắn & thông báo realtime trên Socket
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
@@ -87,7 +104,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         const convIndex = prev.findIndex((c) => c.id === message.conversation_id);
 
         if (convIndex !== -1) {
-          // Hội thoại đã có: cập nhật tin nhắn cuối và tăng số tin chưa đọc (nếu đối phương gửi)
           const targetConv = prev[convIndex];
           const isFromPeer = message.sender_id !== user?.id;
 
@@ -101,25 +117,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           const remaining = prev.filter((_, idx) => idx !== convIndex);
           return [updatedConv, ...remaining];
         } else {
-          // Nếu chưa có hội thoại trong list, gọi tải lại
           fetchConversations();
           return prev;
         }
       });
     };
 
+    const handleNewNotification = () => {
+      setUnreadNotifCount((prev) => prev + 1);
+    };
+
     socket.on('receive_message', handleRealtimeMessage);
     socket.on('conversation_updated', handleRealtimeMessage);
+    socket.on('new_notification', handleNewNotification);
 
     return () => {
       socket.off('receive_message', handleRealtimeMessage);
       socket.off('conversation_updated', handleRealtimeMessage);
+      socket.off('new_notification', handleNewNotification);
     };
   }, [fetchConversations, user?.id]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchConversations();
+    await Promise.all([fetchConversations(), fetchUnreadNotifCount()]);
     setIsRefreshing(false);
   };
 
@@ -168,9 +189,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <Text style={styles.userStatus}>Đang hoạt động</Text>
         </View>
 
-        <TouchableOpacity style={styles.iconButton} onPress={onOpenSearch} activeOpacity={0.7}>
-          <Text style={styles.iconText}>🔍</Text>
-        </TouchableOpacity>
+        <View style={styles.topBarRightActions}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onOpenNotifications}
+            activeOpacity={0.7}
+            accessibilityLabel="Thông báo"
+          >
+            <Ionicons name="notifications-outline" size={20} color="#f8fafc" />
+            {unreadNotifCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.iconButton, { marginLeft: 8 }]}
+            onPress={onOpenSearch}
+            activeOpacity={0.7}
+            accessibilityLabel="Tìm kiếm"
+          >
+            <Ionicons name="search-outline" size={20} color="#f8fafc" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Input Bar */}
@@ -373,6 +417,10 @@ const styles = StyleSheet.create({
     color: '#22c55e',
     fontWeight: '500',
   },
+  topBarRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   iconButton: {
     width: 40,
     height: 40,
@@ -382,6 +430,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#334155',
+    position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   iconText: {
     fontSize: 18,

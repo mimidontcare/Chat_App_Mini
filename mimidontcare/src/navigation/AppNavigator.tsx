@@ -13,6 +13,7 @@ import {
   FriendRequestsScreen,
   MessageRequestsScreen,
   EditProfileScreen,
+  NotificationsScreen,
   LoginScreen,
   RegisterScreen,
 } from '../screens';
@@ -25,11 +26,12 @@ import {
 } from '../constants/mockData';
 
 type ActiveScreen =
-  | { type: 'tabs'; tab: 'chats' | 'friends' | 'profile' }
+  | { type: 'tabs'; tab: 'chats' | 'friends' | 'notifications' | 'profile' }
   | { type: 'chat'; conversation: MockConversation }
   | { type: 'search' }
   | { type: 'friendRequests' }
   | { type: 'messageRequests' }
+  | { type: 'notifications' }
   | { type: 'editProfile' };
 
 export const AppNavigator: React.FC = () => {
@@ -124,6 +126,18 @@ export const AppNavigator: React.FC = () => {
     );
   }
 
+  // Notifications Screen
+  if (currentScreen.type === 'notifications') {
+    return (
+      <NotificationsScreen
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
+        onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
+        onOpenFriends={() => setCurrentScreen({ type: 'tabs', tab: 'friends' })}
+      />
+    );
+  }
+
   // Edit Profile Screen
   if (currentScreen.type === 'editProfile') {
     return (
@@ -150,12 +164,21 @@ export const AppNavigator: React.FC = () => {
             onOpenSearch={() => setCurrentScreen({ type: 'search' })}
             onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
             onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
+            onOpenNotifications={() => setCurrentScreen({ type: 'notifications' })}
           />
         )}
 
         {activeTab === 'friends' && (
           <FriendRequestsScreen
             onStartChat={handleStartChatWithPeer}
+          />
+        )}
+
+        {activeTab === 'notifications' && (
+          <NotificationsScreen
+            onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
+            onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
+            onOpenFriends={() => setCurrentScreen({ type: 'tabs', tab: 'friends' })}
           />
         )}
 
@@ -242,6 +265,34 @@ export const AppNavigator: React.FC = () => {
             ]}
           >
             Friends
+          </Text>
+        </Pressable>
+
+        {/* Notifications Tab */}
+        <Pressable
+          onPress={() => setCurrentScreen({ type: 'tabs', tab: 'notifications' })}
+          style={styles.tabItem}
+          hitSlop={6}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'notifications' }}
+        >
+          <View style={styles.tabIconWrapper}>
+            <Ionicons
+              name={activeTab === 'notifications' ? 'notifications' : 'notifications-outline'}
+              size={24}
+              color={activeTab === 'notifications' ? colors.primary : colors.textSecondary}
+            />
+          </View>
+          <Text
+            style={[
+              Typography.caption,
+              {
+                color: activeTab === 'notifications' ? colors.primary : colors.textSecondary,
+                fontWeight: activeTab === 'notifications' ? '600' : '400',
+              },
+            ]}
+          >
+            Thông báo
           </Text>
         </Pressable>
 

@@ -1,4 +1,5 @@
 const friendModel = require('../models/friendModel');
+const { emitNotificationToUser } = require('../sockets/socketHandler');
 
 const friendController = {
   // Gửi lời mời kết bạn
@@ -15,6 +16,13 @@ const friendController = {
       }
 
       const result = await friendModel.sendRequest(senderId, Number(receiver_id));
+
+      // Bắn Socket realtime thông báo lời mời kết bạn mới
+      emitNotificationToUser(Number(receiver_id), {
+        type: 'friend_request',
+        content: `${req.user.username} đã gửi cho bạn lời mời kết bạn.`,
+        created_at: new Date().toISOString(),
+      });
 
       return res.status(201).json({
         success: true,
@@ -56,6 +64,15 @@ const friendController = {
       const { id } = req.params;
 
       const result = await friendModel.acceptRequest(Number(id), userId);
+
+      // Bắn Socket realtime thông báo chấp nhận kết bạn
+      if (result.sender_id) {
+        emitNotificationToUser(result.sender_id, {
+          type: 'friend_accepted',
+          content: `${req.user.username} đã chấp nhận lời mời kết bạn của bạn.`,
+          created_at: new Date().toISOString(),
+        });
+      }
 
       return res.status(200).json({
         success: true,

@@ -7,3 +7,4 @@ export * from './ChatScreen';
 export * from './FriendRequestsScreen';
 export * from './MessageRequestsScreen';
 export * from './EditProfileScreen';
+export * from './NotificationsScreen';

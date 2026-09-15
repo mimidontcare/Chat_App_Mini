@@ -1,9 +1,12 @@
 const jwt = require('jsonwebtoken');
 
+let ioInstance = null;
+
 // Quản lý danh sách người dùng đang online: Map<userId, Set<socketId>>
 const onlineUsers = new Map();
 
 const socketHandler = (io) => {
+  ioInstance = io;
   // Middleware xác thực JWT cho kết nối socket nếu client gửi token trong handshake
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
@@ -172,11 +175,14 @@ const socketHandler = (io) => {
       }
     });
   });
+};
 
-  return {
-    getOnlineUsers: () => Array.from(onlineUsers.keys()),
-    isUserOnline: (userId) => onlineUsers.has(userId) && onlineUsers.get(userId).size > 0,
-  };
+const emitNotificationToUser = (userId, notification) => {
+  if (ioInstance && userId) {
+    ioInstance.to(`user_${userId}`).emit('new_notification', notification);
+  }
 };
 
 module.exports = socketHandler;
+module.exports.emitNotificationToUser = emitNotificationToUser;
+

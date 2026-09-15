@@ -1,5 +1,7 @@
 const conversationModel = require('../models/conversationModel');
+const notificationModel = require('../models/notificationModel');
 const { uploadToCloudinary } = require('../config/cloudinary');
+const { emitNotificationToUser } = require('../sockets/socketHandler');
 
 const chatController = {
   // Lấy danh sách đoạn chat chính (Home)
@@ -38,6 +40,20 @@ const chatController = {
         currentUserId,
         Number(peer_id)
       );
+
+      // Nếu đây là tin nhắn chờ từ người lạ, tạo thông báo cho người nhận
+      if (conversation.status === 'message_request' && conversation.request_sender_id === currentUserId) {
+        try {
+          const notif = await notificationModel.createNotification(
+            Number(peer_id),
+            'message_request',
+            `${req.user.username} đã gửi cho bạn tin nhắn chờ.`
+          );
+          emitNotificationToUser(Number(peer_id), notif);
+        } catch (notifErr) {
+          console.warn('Lỗi tạo notification message_request (bỏ qua):', notifErr.message);
+        }
+      }
 
       return res.status(200).json({
         success: true,

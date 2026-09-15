@@ -141,7 +141,7 @@ const friendModel = {
       console.warn('Lỗi ghi notification (bỏ qua):', notifErr.message);
     }
 
-    return { success: true, message: 'Đã chấp nhận kết bạn thành công!' };
+    return { success: true, message: 'Đã chấp nhận kết bạn thành công!', sender_id: senderId };
   },
 
   // Từ chối lời mời kết bạn
