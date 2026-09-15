@@ -109,6 +109,34 @@ const userController = {
       });
     }
   },
+
+  // Tìm kiếm người dùng theo từ khóa
+  async searchUsers(req, res) {
+    try {
+      const currentUserId = req.user.id;
+      const query = (req.query.q || '').trim();
+
+      if (!query) {
+        return res.status(200).json({
+          success: true,
+          users: [],
+        });
+      }
+
+      const users = await userModel.searchUsers(query, currentUserId);
+
+      return res.status(200).json({
+        success: true,
+        users,
+      });
+    } catch (error) {
+      console.error('Lỗi API searchUsers:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Lỗi máy chủ khi tìm kiếm người dùng!',
+      });
+    }
+  },
 };
 
 module.exports = userController;

@@ -10,6 +10,9 @@ router.put('/profile', authMiddleware, userController.updateProfile);
 // Upload ảnh đại diện (JWT bắt buộc)
 router.post('/avatar', authMiddleware, upload.single('avatar'), userController.uploadAvatar);
 
+// Tìm kiếm người dùng (JWT bắt buộc)
+router.get('/search', authMiddleware, userController.searchUsers);
+
 // Lấy thông tin user theo ID (JWT bắt buộc)
 router.get('/:id', authMiddleware, userController.getProfile);
 

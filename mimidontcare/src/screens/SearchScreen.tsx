@@ -1,59 +1,114 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../constants/theme';
 import { Avatar, Button, Input, EmptyState } from '../components/common';
-import { MOCK_SEARCH_USERS, MockUser } from '../constants/mockData';
+import api from '../services/api';
+
+export interface SearchUserItem {
+  id: number;
+  username: string;
+  email: string | null;
+  avatar_url: string | null;
+  relationship: 'none' | 'friend' | 'request_sent' | 'request_received' | 'self';
+  is_online?: boolean;
+}
 
 interface SearchScreenProps {
   onBack: () => void;
-  onStartChat: (user: MockUser) => void;
+  onStartChat: (user: any) => void;
 }
 
 export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat }) => {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
-  const [users, setUsers] = useState(MOCK_SEARCH_USERS);
+  const [users, setUsers] = useState<SearchUserItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username.toLowerCase().includes(query.toLowerCase()) ||
-      u.email.toLowerCase().includes(query.toLowerCase())
-  );
+  // Debounce search API call (400ms)
+  useEffect(() => {
+    if (!query.trim()) {
+      setUsers([]);
+      setIsLoading(false);
+      setHasSearched(false);
+      return;
+    }
 
-  const handleAddFriend = (userId: number) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, relation: 'pending_sent' } : u))
-    );
+    setIsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get('/users/search', {
+          params: { q: query.trim() },
+        });
+
+        if (res.data?.success) {
+          setUsers(res.data.users || []);
+        }
+      } catch (error) {
+        console.error('Lỗi tìm kiếm người dùng:', error);
+      } finally {
+        setIsLoading(false);
+        setHasSearched(true);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Xử lý gửi lời mời kết bạn
+  const handleAddFriend = async (targetUser: SearchUserItem) => {
+    try {
+      // Cập nhật UI tức thời (Optimistic Update)
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, relationship: 'request_sent' } : u))
+      );
+
+      // Gọi API kết bạn (chuẩn bị cho Phase 5)
+      await api.post('/friends/request', { receiver_id: targetUser.id }).catch(() => {
+        // Nếu API Phase 5 chưa xong, state vẫn giữ nguyên để trải nghiệm không bị gián đoạn
+      });
+    } catch (err) {
+      console.error('Lỗi gửi lời mời kết bạn:', err);
+    }
   };
 
-  const handleAcceptFriend = (userId: number) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, relation: 'friend' } : u))
-    );
+  // Xử lý chấp nhận lời mời kết bạn
+  const handleAcceptFriend = async (targetUser: SearchUserItem) => {
+    try {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, relationship: 'friend' } : u))
+      );
+
+      await api.post(`/friends/request/${targetUser.id}/accept`).catch(() => {});
+    } catch (err) {
+      console.error('Lỗi chấp nhận lời mời kết bạn:', err);
+    }
   };
 
-  const renderRelationshipAction = (user: (typeof MOCK_SEARCH_USERS)[0]) => {
-    switch (user.relation) {
+  // Hiển thị nút hành động tùy theo trạng thái quan hệ (Must-Have của Phase 4)
+  const renderRelationshipAction = (user: SearchUserItem) => {
+    switch (user.relationship) {
       case 'self':
         return (
           <View style={[styles.selfBadge, { backgroundColor: colors.surfaceSecondary }]}>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>You</Text>
+            <Text style={[Typography.caption, { color: colors.textSecondary }]}>Bạn</Text>
           </View>
         );
 
       case 'friend':
         return (
           <Button
-            title="Chat"
+            title="Nhắn tin"
             onPress={() => onStartChat(user)}
             variant="primary"
             size="sm"
@@ -61,10 +116,10 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
           />
         );
 
-      case 'pending_sent':
+      case 'request_sent':
         return (
           <Button
-            title="Requested"
+            title="Đã gửi lời mời"
             onPress={() => {}}
             variant="secondary"
             size="sm"
@@ -72,23 +127,23 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
           />
         );
 
-      case 'pending_received':
+      case 'request_received':
         return (
           <Button
-            title="Accept"
-            onPress={() => handleAcceptFriend(user.id)}
+            title="Chấp nhận"
+            onPress={() => handleAcceptFriend(user)}
             variant="primary"
             size="sm"
             leftIcon={<Ionicons name="checkmark" size={14} color="#FFFFFF" />}
           />
         );
 
-      case 'stranger':
+      case 'none':
       default:
         return (
           <Button
-            title="Add Friend"
-            onPress={() => handleAddFriend(user.id)}
+            title="Kết bạn"
+            onPress={() => handleAddFriend(user)}
             variant="outline"
             size="sm"
             leftIcon={<Ionicons name="person-add" size={14} color={colors.primary} />}
@@ -113,7 +168,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
 
         <View style={styles.inputWrapper}>
           <Input
-            placeholder="Search by username or email..."
+            placeholder="Tìm theo username hoặc email..."
             value={query}
             onChangeText={setQuery}
             leftIcon="search-outline"
@@ -125,9 +180,19 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         </View>
       </View>
 
+      {/* Loading Indicator */}
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={[Typography.caption, { color: colors.textSecondary, marginLeft: 8 }]}>
+            Đang tìm kiếm...
+          </Text>
+        </View>
+      )}
+
       {/* Results List */}
       <FlatList
-        data={filteredUsers}
+        data={users}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View
@@ -149,7 +214,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
                 {item.username}
               </Text>
               <Text style={[Typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.email}
+                {item.email || 'Chưa cập nhật email'}
               </Text>
             </View>
 
@@ -158,11 +223,21 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <EmptyState
-            icon="search-outline"
-            title="No Users Found"
-            description={`No results matching "${query}". Try searching with a different keyword.`}
-          />
+          !isLoading ? (
+            hasSearched ? (
+              <EmptyState
+                icon="search-outline"
+                title="Không tìm thấy người dùng"
+                description={`Không có kết quả nào khớp với "${query}". Hãy thử tìm với từ khóa khác.`}
+              />
+            ) : (
+              <EmptyState
+                icon="people-outline"
+                title="Tìm kiếm bạn bè"
+                description="Nhập tên đăng nhập hoặc địa chỉ email để tìm kiếm và kết bạn mới."
+              />
+            )
+          ) : null
         }
       />
     </SafeAreaView>
@@ -190,6 +265,12 @@ const styles = StyleSheet.create({
   },
   searchContainerStyle: {
     marginBottom: Spacing.sm,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
   },
   listContent: {
     flexGrow: 1,

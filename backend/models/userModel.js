@@ -46,6 +46,50 @@ const userModel = {
     );
     return this.findById(id);
   },
+
+  // Tìm kiếm người dùng và kiểm tra trạng thái quan hệ
+  async searchUsers(query, currentUserId) {
+    const searchPattern = `%${query}%`;
+    const [rows] = await db.query(
+      `SELECT 
+        u.id, 
+        u.username, 
+        u.email, 
+        u.avatar_url,
+        u.created_at,
+        CASE
+          WHEN u.id = ? THEN 'self'
+          WHEN EXISTS (
+            SELECT 1 FROM friendships 
+            WHERE (user1_id = LEAST(?, u.id) AND user2_id = GREATEST(?, u.id))
+          ) THEN 'friend'
+          WHEN EXISTS (
+            SELECT 1 FROM friend_requests 
+            WHERE sender_id = ? AND receiver_id = u.id AND status = 'pending'
+          ) THEN 'request_sent'
+          WHEN EXISTS (
+            SELECT 1 FROM friend_requests 
+            WHERE sender_id = u.id AND receiver_id = ? AND status = 'pending'
+          ) THEN 'request_received'
+          ELSE 'none'
+        END AS relationship
+      FROM users u
+      WHERE (u.username LIKE ? OR u.email LIKE ?) AND u.id != ?
+      ORDER BY u.username ASC
+      LIMIT 30`,
+      [
+        currentUserId,
+        currentUserId,
+        currentUserId,
+        currentUserId,
+        currentUserId,
+        searchPattern,
+        searchPattern,
+        currentUserId,
+      ]
+    );
+    return rows;
+  },
 };
 
 module.exports = userModel;
