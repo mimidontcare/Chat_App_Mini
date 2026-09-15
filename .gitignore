@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+backend/node_modules/
+mimidontcare/node_modules/
+
+# Environment variables
+.env
+backend/.env
+*.env.local
+
+# Expo & Build artifacts
+.expo/
+dist/
+web-build/
+
+# Logs
+*.log
+npm-debug.*
+
+# OS
+.DS_Store
+Thumbs.db
