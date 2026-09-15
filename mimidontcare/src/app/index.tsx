@@ -1,98 +1,201 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { useAuth } from '@/context/AuthContext';
+import { Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
+  const { user, logout } = useAuth();
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
+            </Text>
+          </View>
+          <View style={styles.headerInfo}>
+            <Text style={styles.welcomeText}>Xin chào,</Text>
+            <Text style={styles.usernameText}>{user?.username || 'Người dùng'}</Text>
+          </View>
+        </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        {/* User Details Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Thông Tin Tài Khoản</Text>
+          <View style={styles.divider} />
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Mã người dùng (ID):</Text>
+            <Text style={styles.infoValue}>#{user?.id}</Text>
+          </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Tên đăng nhập:</Text>
+            <Text style={styles.infoValue}>{user?.username}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{user?.email || '(Chưa cập nhật)'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Trạng thái:</Text>
+            <View style={styles.badgeSuccess}>
+              <Text style={styles.badgeText}>Đã xác thực JWT</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Phase Checklist Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tiến Độ Dự Án</Text>
+          <View style={styles.divider} />
+          <View style={styles.taskItem}>
+            <Text style={styles.taskIcon}>✅</Text>
+            <Text style={styles.taskText}>Phase 0: Chuẩn bị môi trường & MySQL DB</Text>
+          </View>
+          <View style={styles.taskItem}>
+            <Text style={styles.taskIcon}>✅</Text>
+            <Text style={styles.taskText}>Phase 1: Backend Authentication (Bcrypt + JWT)</Text>
+          </View>
+          <View style={styles.taskItem}>
+            <Text style={styles.taskIcon}>✅</Text>
+            <Text style={styles.taskText}>Phase 2: Frontend Auth (Axios + AuthContext)</Text>
+          </View>
+          <View style={styles.taskItem}>
+            <Text style={styles.taskIcon}>⏳</Text>
+            <Text style={styles.taskText}>Phase 3: Navigation & Profile (Tiếp theo)</Text>
+          </View>
+        </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={logout} activeOpacity={0.8}>
+          <Text style={styles.logoutButtonText}>Đăng Xuất</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    backgroundColor: '#0f172a',
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+  scrollContent: {
+    padding: Spacing.four,
     gap: Spacing.four,
   },
-  title: {
-    textAlign: 'center',
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 16,
   },
-  code: {
-    textTransform: 'uppercase',
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#60a5fa',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  avatarText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  usernameText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  card: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+    marginBottom: 10,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#334155',
+    marginBottom: 14,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f8fafc',
+  },
+  badgeSuccess: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+  },
+  badgeText: {
+    color: '#4ade80',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  taskIcon: {
+    fontSize: 16,
+  },
+  taskText: {
+    fontSize: 14,
+    color: '#cbd5e1',
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  logoutButtonText: {
+    color: '#f87171',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
