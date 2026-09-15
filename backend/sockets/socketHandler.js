@@ -111,10 +111,7 @@ const socketHandler = (io) => {
       // Đồng thời gửi tới phòng cá nhân của người nhận (nếu họ đang ở ngoài HomeScreen)
       if (receiver_id) {
         socket.to(`user_${receiver_id}`).emit('receive_message', message);
-        socket.to(`user_${receiver_id}`).emit('conversation_updated', {
-          conversation_id,
-          last_message: message,
-        });
+        socket.to(`user_${receiver_id}`).emit('conversation_updated', message);
       }
     });
 

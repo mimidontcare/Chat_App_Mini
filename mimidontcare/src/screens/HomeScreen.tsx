@@ -102,21 +102,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     const socket = getSocket();
     if (!socket) return;
 
-    const handleRealtimeMessage = (message: any) => {
-      if (!message || !message.conversation_id) return;
+    const handleRealtimeMessage = (data: any) => {
+      if (!data) return;
+
+      // Chuẩn hóa message: hỗ trợ cả message trực tiếp và wrapper { conversation_id, last_message }
+      const actualMessage = data.last_message ? data.last_message : data;
+      const convId = Number(data.conversation_id || actualMessage.conversation_id);
+
+      if (!convId || !actualMessage) return;
 
       setConversations((prev) => {
-        const convIndex = prev.findIndex((c) => c.id === message.conversation_id);
+        const convIndex = prev.findIndex((c) => Number(c.id) === convId);
 
         if (convIndex !== -1) {
           const targetConv = prev[convIndex];
-          const isFromPeer = message.sender_id !== user?.id;
+          const isFromPeer = Number(actualMessage.sender_id) !== Number(user?.id);
 
           const updatedConv: ConversationItem = {
             ...targetConv,
-            last_message: message,
+            last_message: {
+              id: actualMessage.id || Date.now(),
+              content: actualMessage.content || '',
+              message_type: actualMessage.message_type || 'text',
+              sender_id: Number(actualMessage.sender_id),
+              is_read: Boolean(actualMessage.is_read),
+              created_at: actualMessage.created_at || new Date().toISOString(),
+            },
             unread_count: isFromPeer ? (targetConv.unread_count || 0) + 1 : targetConv.unread_count,
-            updated_at: message.created_at || new Date().toISOString(),
+            updated_at: actualMessage.created_at || new Date().toISOString(),
           };
 
           const remaining = prev.filter((_, idx) => idx !== convIndex);
