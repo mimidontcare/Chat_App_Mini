@@ -1,240 +1,138 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
   ScrollView,
-  Pressable,
+  Image,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../hooks/useTheme';
-import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { Avatar, Button } from '../components/common';
-import { CURRENT_USER } from '../constants/mockData';
 
 interface ProfileScreenProps {
-  onEditProfile: () => void;
+  onNavigateToEditProfile?: () => void;
+  onEditProfile?: () => void;
   onLogoutPress?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
+  onNavigateToEditProfile,
   onEditProfile,
   onLogoutPress,
 }) => {
   const { user, logout } = useAuth();
-  const { colors, isDark } = useTheme();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const displayUser = {
-    username: user?.username || CURRENT_USER.username,
-    email: user?.email || CURRENT_USER.email,
-    avatar_url: user?.avatar_url || CURRENT_USER.avatar_url,
-  };
+  const handleEdit = onEditProfile || onNavigateToEditProfile;
 
   const handleLogout = () => {
     Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out of your account?',
+      'Xác nhận đăng xuất',
+      'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Log Out',
+          text: 'Đăng xuất',
           style: 'destructive',
           onPress: async () => {
-            setLoggingOut(true);
-            try {
-              if (onLogoutPress) {
-                onLogoutPress();
-              } else {
-                await logout();
-              }
-            } finally {
-              setLoggingOut(false);
-            }
+            if (onLogoutPress) onLogoutPress();
+            await logout();
           },
         },
       ]
     );
   };
 
+  const formattedDate = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : 'Không rõ';
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Hero Card */}
-        <View
-          style={[
-            styles.heroCard,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            Shadows.sm,
-          ]}
-        >
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Hồ Sơ Cá Nhân</Text>
+        </View>
+
+        {/* User Card */}
+        <View style={styles.userCard}>
           <View style={styles.avatarWrapper}>
-            <Avatar
-              uri={displayUser.avatar_url}
-              name={displayUser.username}
-              size="xl"
-              isOnline
-              showStatus
-            />
-            <Pressable
-              onPress={onEditProfile}
-              style={[styles.editAvatarBadge, { backgroundColor: colors.primary }]}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Edit profile picture"
-            >
-              <Ionicons name="camera" size={18} color="#FFFFFF" />
-            </Pressable>
+            {user?.avatar_url ? (
+              <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>
+                  {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.onlineDot} />
           </View>
 
-          <Text style={[Typography.headline, styles.userName, { color: colors.textPrimary }]}>
-            {displayUser.username}
-          </Text>
-          <Text style={[Typography.subtext, { color: colors.textSecondary }]}>
-            {displayUser.email}
-          </Text>
+          <Text style={styles.username}>{user?.username || 'Người dùng'}</Text>
+          <Text style={styles.email}>{user?.email || 'Chưa cập nhật email'}</Text>
 
-          <View
-            style={[
-              styles.statusPill,
-              { backgroundColor: colors.surfaceSecondary },
-            ]}
-          >
-            <View style={[styles.onlineDot, { backgroundColor: colors.online }]} />
-            <Text style={[Typography.caption, { color: colors.textPrimary }]}>
-              {CURRENT_USER.status_message}
-            </Text>
-          </View>
-
-          <Button
-            title="Edit Profile"
-            onPress={onEditProfile}
-            variant="secondary"
-            size="sm"
-            leftIcon={<Ionicons name="pencil" size={14} color={colors.textPrimary} />}
-            style={styles.editBtn}
-          />
-        </View>
-
-        {/* Stats Row */}
-        <View style={styles.statsRow}>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.sm,
-            ]}
-          >
-            <Text style={[Typography.title, styles.statNumber, { color: colors.primary }]}>
-              12
-            </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-              Friends
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.sm,
-            ]}
-          >
-            <Text style={[Typography.title, styles.statNumber, { color: colors.primary }]}>
-              5
-            </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-              Chats
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.sm,
-            ]}
-          >
-            <Text style={[Typography.title, styles.statNumber, { color: colors.online }]}>
-              Active
-            </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-              Realtime
-            </Text>
+          <View style={styles.idBadge}>
+            <Text style={styles.idBadgeText}>ID: #{user?.id}</Text>
           </View>
         </View>
 
-        {/* Settings Group */}
-        <View
-          style={[
-            styles.menuGroup,
-            { backgroundColor: colors.surface, borderColor: colors.border },
-            Shadows.sm,
-          ]}
-        >
-          <View style={styles.menuItem}>
-            <View style={[styles.menuIconCircle, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="moon-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[Typography.title, styles.menuTitle, { color: colors.textPrimary }]}>
-                Dark Mode
-              </Text>
-              <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                {isDark ? 'Enabled' : 'Disabled (Follows System)'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        {/* Detailed Info Section */}
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Thông tin chi tiết</Text>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Tên đăng nhập</Text>
+            <Text style={styles.infoValue}>@{user?.username}</Text>
           </View>
 
-          <View style={[styles.menuDivider, { backgroundColor: colors.borderLight }]} />
+          <View style={styles.divider} />
 
-          <View style={styles.menuItem}>
-            <View style={[styles.menuIconCircle, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[Typography.title, styles.menuTitle, { color: colors.textPrimary }]}>
-                Privacy & Security
-              </Text>
-              <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                Message request filters & blocked users
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Địa chỉ Email</Text>
+            <Text style={styles.infoValue}>{user?.email || '(Trống)'}</Text>
           </View>
 
-          <View style={[styles.menuDivider, { backgroundColor: colors.borderLight }]} />
+          <View style={styles.divider} />
 
-          <View style={styles.menuItem}>
-            <View style={[styles.menuIconCircle, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="notifications-outline" size={20} color={colors.primary} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Ngày tham gia</Text>
+            <Text style={styles.infoValue}>{formattedDate}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Trạng thái</Text>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>Đã xác thực</Text>
             </View>
-            <View style={styles.menuContent}>
-              <Text style={[Typography.title, styles.menuTitle, { color: colors.textPrimary }]}>
-                Notifications
-              </Text>
-              <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                In-app sound and preview banners
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
         </View>
 
-        {/* Logout Button */}
-        <Button
-          title="Sign Out"
-          onPress={handleLogout}
-          loading={loggingOut}
-          variant="destructive"
-          size="md"
-          leftIcon={<Ionicons name="log-out-outline" size={18} color={colors.destructive} />}
-          style={styles.logoutBtn}
-        />
+        {/* Action Buttons */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={handleEdit}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.editButtonText}>✏️ Chỉnh sửa thông tin cá nhân</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.logoutButtonText}>🚪 Đăng xuất</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -243,105 +141,161 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#0f172a',
   },
   scrollContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xxl,
+    padding: 20,
+    paddingBottom: 40,
   },
-  heroCard: {
+  header: {
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  userCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 24,
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.xl,
     borderWidth: 1,
-    marginBottom: Spacing.lg,
+    borderColor: '#334155',
+    marginBottom: 24,
   },
   avatarWrapper: {
     position: 'relative',
-    marginBottom: Spacing.md,
+    marginBottom: 16,
   },
-  editAvatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  avatarImage: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#3b82f6',
+  },
+  avatarPlaceholder: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#3b82f6',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderWidth: 3,
+    borderColor: '#60a5fa',
   },
-  userName: {
-    fontSize: 22,
-    marginBottom: 2,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.md,
-    gap: 6,
+  avatarText: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   onlineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#22c55e',
+    borderWidth: 2,
+    borderColor: '#1e293b',
   },
-  editBtn: {
-    minWidth: 140,
+  username: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#f8fafc',
+    marginBottom: 4,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
+  email: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginBottom: 12,
   },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-  },
-  statNumber: {
-    fontSize: 18,
-    marginBottom: 2,
-  },
-  menuGroup: {
-    borderRadius: Radius.xl,
-    borderWidth: 1,
-    overflow: 'hidden',
-    marginBottom: Spacing.xl,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  menuIconCircle: {
-    width: 38,
-    height: 38,
+  idBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  idBadgeText: {
+    color: '#60a5fa',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  infoSection: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f8fafc',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#334155',
+  },
+  statusBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    color: '#4ade80',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  actionsContainer: {
+    gap: 12,
+  },
+  editButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 14,
+    paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  menuContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  menuTitle: {
+  editButtonText: {
+    color: '#ffffff',
     fontSize: 15,
+    fontWeight: '700',
   },
-  menuDivider: {
-    height: 1,
-    marginLeft: Spacing.lg + 38 + Spacing.md,
+  logoutButton: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ef4444',
   },
-  logoutBtn: {
-    marginTop: Spacing.xs,
+  logoutButtonText: {
+    color: '#f87171',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

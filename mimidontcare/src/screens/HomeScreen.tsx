@@ -3,278 +3,107 @@ import {
   View,
   Text,
   StyleSheet,
+  TextInput,
+  TouchableOpacity,
   FlatList,
-  Pressable,
-  RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../hooks/useTheme';
-import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { Avatar, EmptyState } from '../components/common';
-import {
-  CURRENT_USER,
-  MOCK_CONVERSATIONS,
-  MOCK_MESSAGE_REQUESTS,
-  MockConversation,
-} from '../constants/mockData';
+import { useAuth } from '../context/AuthContext';
 
 interface HomeScreenProps {
-  onSelectConversation: (conversation: MockConversation) => void;
-  onOpenSearch: () => void;
-  onOpenMessageRequests: () => void;
-  onOpenFriendRequests: () => void;
+  onSelectConversation?: (conv: any) => void;
+  onOpenSearch?: () => void;
+  onOpenProfile?: () => void;
+  onOpenMessageRequests?: () => void;
+  onOpenFriendRequests?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onSelectConversation,
   onOpenSearch,
+  onOpenProfile,
   onOpenMessageRequests,
   onOpenFriendRequests,
 }) => {
-  const { colors } = useTheme();
-  const [conversations, setConversations] = useState<MockConversation[]>(MOCK_CONVERSATIONS);
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [refreshing, setRefreshing] = useState(false);
-
-  const pendingRequestsCount = MOCK_MESSAGE_REQUESTS.length;
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 800);
-  };
-
-  const filteredList = conversations.filter((c) => {
-    if (filter === 'unread') return c.unread_count > 0;
-    return true;
-  });
-
-  const renderItem = ({ item }: { item: MockConversation }) => {
-    const isUnread = item.unread_count > 0;
-
-    return (
-      <Pressable
-        onPress={() => onSelectConversation(item)}
-        style={({ pressed }) => [
-          styles.conversationItem,
-          { backgroundColor: pressed ? colors.surfaceSecondary : 'transparent' },
-        ]}
-        android_ripple={{ color: colors.surfaceSecondary }}
-      >
-        <Avatar
-          uri={item.peer.avatar_url}
-          name={item.peer.username}
-          size="md"
-          isOnline={item.peer.is_online}
-          showStatus
-        />
-
-        <View style={styles.conversationContent}>
-          <View style={styles.conversationTopRow}>
-            <Text
-              style={[
-                Typography.title,
-                styles.username,
-                { color: colors.textPrimary },
-              ]}
-              numberOfLines={1}
-            >
-              {item.peer.username}
-            </Text>
-            <Text
-              style={[
-                Typography.caption,
-                {
-                  color: isUnread ? colors.primary : colors.textSecondary,
-                  fontWeight: isUnread ? '600' : '400',
-                },
-              ]}
-            >
-              {item.last_message.created_at}
-            </Text>
-          </View>
-
-          <View style={styles.conversationBottomRow}>
-            <Text
-              style={[
-                Typography.subtext,
-                styles.messagePreview,
-                {
-                  color: isUnread ? colors.textPrimary : colors.textSecondary,
-                  fontWeight: isUnread ? '600' : '400',
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {item.last_message.message_type === 'image' ? '📷 Photo' : item.last_message.content}
-            </Text>
-
-            {isUnread ? (
-              <View style={[styles.unreadBadge, { backgroundColor: colors.unreadBadge }]}>
-                <Text style={[Typography.caption, styles.unreadText]}>
-                  {item.unread_count}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      </Pressable>
-    );
-  };
+  const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Top Header */}
-      <View style={[styles.header, { borderBottomColor: colors.borderLight }]}>
-        <View style={styles.headerLeft}>
-          <Avatar
-            uri={CURRENT_USER.avatar_url}
-            name={CURRENT_USER.username}
-            size="sm"
-            isOnline={CURRENT_USER.is_online}
-            showStatus
-          />
-          <Text style={[Typography.headline, styles.headerTitle, { color: colors.textPrimary }]}>
-            Messages
-          </Text>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Top App Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.avatarButton} onPress={onOpenProfile} activeOpacity={0.8}>
+          {user?.avatar_url ? (
+            <Image source={{ uri: user.avatar_url }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>
+                {user?.username ? user.username.charAt(0).toUpperCase() : 'U'}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.topBarCenter}>
+          <Text style={styles.appTitle}>Đoạn chat</Text>
+          <Text style={styles.userStatus}>Đang hoạt động</Text>
         </View>
 
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={onOpenFriendRequests}
-            style={[styles.headerIconBtn, { backgroundColor: colors.surfaceSecondary }]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Friend requests"
-          >
-            <Ionicons name="people-outline" size={20} color={colors.textPrimary} />
-          </Pressable>
+        <TouchableOpacity style={styles.iconButton} onPress={onOpenSearch} activeOpacity={0.7}>
+          <Text style={styles.iconText}>🔍</Text>
+        </TouchableOpacity>
+      </View>
 
-          <Pressable
-            onPress={onOpenSearch}
-            style={[styles.headerIconBtn, { backgroundColor: colors.surfaceSecondary }]}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Search users"
-          >
-            <Ionicons name="search-outline" size={20} color={colors.textPrimary} />
-          </Pressable>
+      {/* Search Input Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBox}>
+          <Text style={styles.searchIcon}>🔎</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm bạn bè hoặc tin nhắn..."
+            placeholderTextColor="#94a3b8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Text style={styles.clearText}>✕</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
-      {/* Search Bar Entry */}
-      <Pressable
-        onPress={onOpenSearch}
-        style={[
-          styles.searchBar,
-          { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
-        ]}
-      >
-        <Ionicons name="search" size={18} color={colors.textPlaceholder} />
-        <Text style={[Typography.body, { color: colors.textPlaceholder, marginLeft: Spacing.sm }]}>
-          Search messages or users...
-        </Text>
-      </Pressable>
-
-      {/* Message Requests Banner (if any) */}
-      {pendingRequestsCount > 0 ? (
-        <Pressable
+      {/* Quick Action Badges */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity style={styles.actionChip} activeOpacity={0.7}>
+          <Text style={styles.actionChipText}>Tất cả</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.actionChip, styles.actionChipInactive]} activeOpacity={0.7}>
+          <Text style={styles.actionChipTextInactive}>Chưa đọc</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.actionChip, styles.actionChipInactive]}
           onPress={onOpenMessageRequests}
-          style={[
-            styles.requestBanner,
-            { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-          ]}
+          activeOpacity={0.7}
         >
-          <View style={styles.requestBannerLeft}>
-            <View style={[styles.requestIconCircle, { backgroundColor: colors.primary }]}>
-              <Ionicons name="chatbubble-ellipses" size={16} color="#FFFFFF" />
-            </View>
-            <View>
-              <Text style={[Typography.title, { fontSize: 14, color: colors.textPrimary }]}>
-                Message Requests
-              </Text>
-              <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                {pendingRequestsCount} new message from someone you may know
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-        </Pressable>
-      ) : null}
-
-      {/* Filter Tabs */}
-      <View style={styles.filterRow}>
-        <Pressable
-          onPress={() => setFilter('all')}
-          style={[
-            styles.filterPill,
-            filter === 'all'
-              ? { backgroundColor: colors.primary }
-              : { backgroundColor: colors.surfaceSecondary },
-          ]}
-        >
-          <Text
-            style={[
-              Typography.subtext,
-              {
-                color: filter === 'all' ? colors.onPrimary : colors.textSecondary,
-                fontWeight: filter === 'all' ? '600' : '400',
-              },
-            ]}
-          >
-            All Chats
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setFilter('unread')}
-          style={[
-            styles.filterPill,
-            filter === 'unread'
-              ? { backgroundColor: colors.primary }
-              : { backgroundColor: colors.surfaceSecondary },
-          ]}
-        >
-          <Text
-            style={[
-              Typography.subtext,
-              {
-                color: filter === 'unread' ? colors.onPrimary : colors.textSecondary,
-                fontWeight: filter === 'unread' ? '600' : '400',
-              },
-            ]}
-          >
-            Unread
-          </Text>
-        </Pressable>
+          <Text style={styles.actionChipTextInactive}>Tin nhắn chờ</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Conversations List */}
-      <FlatList
-        data={filteredList}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon="chatbubble-outline"
-            title="No Conversations Yet"
-            description="Start searching for contacts or friends to initiate a 1-to-1 conversation."
-            actionTitle="Find People"
-            onAction={onOpenSearch}
-          />
-        }
-      />
+      {/* Empty State / Conversation List */}
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconCircle}>
+          <Text style={styles.emptyIcon}>💬</Text>
+        </View>
+        <Text style={styles.emptyTitle}>Chưa có cuộc trò chuyện nào</Text>
+        <Text style={styles.emptySubtitle}>
+          Hãy tìm kiếm tên bạn bè để kết bạn và bắt đầu trò chuyện thời gian thực 1-1!
+        </Text>
+        <TouchableOpacity style={styles.startChatButton} onPress={onOpenSearch} activeOpacity={0.8}>
+          <Text style={styles.startChatButtonText}>+ Bắt đầu trò chuyện mới</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -282,123 +111,165 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#0f172a',
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
-  headerLeft: {
-    flexDirection: 'row',
+  avatarButton: {
+    marginRight: 12,
+  },
+  avatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#3b82f6',
     alignItems: 'center',
-    gap: Spacing.md,
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#60a5fa',
   },
-  headerTitle: {
+  avatarText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  topBarCenter: {
+    flex: 1,
+  },
+  appTitle: {
     fontSize: 22,
+    fontWeight: '700',
+    color: '#f8fafc',
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  userStatus: {
+    fontSize: 12,
+    color: '#22c55e',
+    fontWeight: '500',
   },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.full,
+  iconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 42,
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.pill,
     borderWidth: 1,
+    borderColor: '#334155',
   },
-  requestBanner: {
+  iconText: {
+    fontSize: 18,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.xs,
-    padding: Spacing.md,
-    borderRadius: Radius.md,
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderWidth: 1,
+    borderColor: '#334155',
   },
-  requestBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  searchIcon: {
+    marginRight: 8,
+    fontSize: 16,
   },
-  requestIconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  filterPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  conversationContent: {
+  searchInput: {
     flex: 1,
-    marginLeft: Spacing.md,
-    justifyContent: 'center',
+    color: '#f8fafc',
+    fontSize: 14,
   },
-  conversationTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  username: {
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  conversationBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  messagePreview: {
-    flex: 1,
-    marginRight: Spacing.sm,
-  },
-  unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+  clearText: {
+    color: '#94a3b8',
+    fontSize: 16,
     paddingHorizontal: 6,
   },
-  unreadText: {
-    color: '#FFFFFF',
-    fontSize: 11,
+  quickActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 10,
+    marginBottom: 20,
+  },
+  actionChip: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  actionChipInactive: {
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  actionChipText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  actionChipTextInactive: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 20,
+  },
+  emptyIcon: {
+    fontSize: 40,
+  },
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '700',
+    color: '#f8fafc',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  startChatButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+    borderRadius: 12,
+  },
+  startChatButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

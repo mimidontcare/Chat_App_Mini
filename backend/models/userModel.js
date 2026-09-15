@@ -37,6 +37,15 @@ const userModel = {
     );
     return result.insertId;
   },
+
+  // Cập nhật thông tin profile
+  async updateProfile(id, { username, email, avatar_url }) {
+    await db.query(
+      'UPDATE users SET username = COALESCE(?, username), email = COALESCE(?, email), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
+      [username || null, email || null, avatar_url || null, id]
+    );
+    return this.findById(id);
+  },
 };
 
 module.exports = userModel;

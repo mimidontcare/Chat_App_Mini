@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
+  updateUser: (updatedUser: User) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -91,6 +92,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Cập nhật thông tin User
+  const updateUser = async (updatedUser: User) => {
+    setUser(updatedUser);
+    await AsyncStorage.setItem('@auth_user', JSON.stringify(updatedUser));
+  };
+
   // Hàm Đăng xuất
   const logout = async () => {
     try {
@@ -105,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, register, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
