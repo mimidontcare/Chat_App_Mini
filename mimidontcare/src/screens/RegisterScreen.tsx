@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
+import { Button, Input } from '../components/common';
 
 interface RegisterScreenProps {
   onNavigateToLogin: () => void;
@@ -19,6 +20,8 @@ interface RegisterScreenProps {
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) => {
   const { register } = useAuth();
+  const { colors } = useTheme();
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,23 +30,24 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRegister = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError('Vui lòng nhập tên đăng nhập và mật khẩu');
+    if (!username.trim()) {
+      setError('Username is required');
       return;
     }
-
     if (username.trim().length < 3) {
-      setError('Tên đăng nhập phải có ít nhất 3 ký tự');
+      setError('Username must be at least 3 characters');
       return;
     }
-
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
     if (password.length < 6) {
-      setError('Mật khẩu phải từ 6 ký tự trở lên');
+      setError('Password must be at least 6 characters');
       return;
     }
-
     if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError('Passwords do not match');
       return;
     }
 
@@ -52,14 +56,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
       setIsSubmitting(true);
       await register(username.trim(), email.trim(), password);
     } catch (err: any) {
-      setError(err.message || 'Đăng ký thất bại. Vui lòng thử lại!');
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
@@ -67,108 +71,108 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Header & Logo */}
+          {/* Header */}
           <View style={styles.headerContainer}>
-            <View style={styles.logoBadge}>
-              <Text style={styles.logoIcon}>✨</Text>
+            <View
+              style={[
+                styles.logoBadge,
+                { backgroundColor: colors.primaryLight },
+                Shadows.sm,
+              ]}
+            >
+              <Ionicons name="person-add" size={36} color={colors.primary} />
             </View>
-            <Text style={styles.title}>Tạo Tài Khoản</Text>
-            <Text style={styles.subtitle}>Bắt đầu trải nghiệm chat 1-1 realtime</Text>
+            <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
+              Create Account
+            </Text>
+            <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+              Join and start chatting with your friends
+            </Text>
           </View>
 
-          {/* Form */}
-          <View style={styles.card}>
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>{error}</Text>
+          {/* Form Card */}
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+              Shadows.md,
+            ]}
+          >
+            {error ? (
+              <View
+                style={[
+                  styles.errorBanner,
+                  { backgroundColor: colors.destructiveLight, borderColor: colors.destructive },
+                ]}
+              >
+                <Ionicons name="alert-circle" size={18} color={colors.destructive} />
+                <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
+                  {error}
+                </Text>
               </View>
-            )}
+            ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tên đăng nhập *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ví dụ: nguyenvana"
-                placeholderTextColor="#9ca3af"
-                value={username}
-                onChangeText={(text) => {
-                  setUsername(text);
-                  if (error) setError(null);
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <Input
+              label="Username"
+              placeholder="e.g. alexnguyen"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              leftIcon="person-outline"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email (tùy chọn)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ví dụ: a@example.com"
-                placeholderTextColor="#9ca3af"
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (error) setError(null);
-                }}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+            <Input
+              label="Email (Optional)"
+              placeholder="e.g. alex@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon="mail-outline"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Mật khẩu (ít nhất 6 ký tự) *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập mật khẩu bí mật"
-                placeholderTextColor="#9ca3af"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (error) setError(null);
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
+            <Input
+              label="Password"
+              placeholder="Minimum 6 characters"
+              value={password}
+              onChangeText={setPassword}
+              isPassword
+              leftIcon="lock-closed-outline"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Xác nhận mật khẩu *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Nhập lại mật khẩu ở trên"
-                placeholderTextColor="#9ca3af"
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  if (error) setError(null);
-                }}
-                secureTextEntry
-                autoCapitalize="none"
-              />
-            </View>
+            <Input
+              label="Confirm Password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              isPassword
+              leftIcon="shield-checkmark-outline"
+            />
 
-            <TouchableOpacity
-              style={[styles.primaryButton, isSubmitting && styles.buttonDisabled]}
+            <Button
+              title="Sign Up"
               onPress={handleRegister}
-              disabled={isSubmitting}
-              activeOpacity={0.8}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.primaryButtonText}>Đăng Ký Tài Khoản</Text>
-              )}
-            </TouchableOpacity>
+              loading={isSubmitting}
+              variant="primary"
+              size="lg"
+              style={styles.submitBtn}
+            />
+          </View>
 
-            <View style={styles.switchAuthContainer}>
-              <Text style={styles.switchAuthText}>Đã có tài khoản? </Text>
-              <TouchableOpacity onPress={onNavigateToLogin}>
-                <Text style={styles.switchAuthLink}>Đăng nhập</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Switch to Login */}
+          <View style={styles.footerRow}>
+            <Text style={[Typography.body, { color: colors.textSecondary }]}>
+              Already have an account?{' '}
+            </Text>
+            <Button
+              title="Sign In"
+              onPress={onNavigateToLogin}
+              variant="ghost"
+              size="sm"
+              textStyle={styles.linkText}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -179,116 +183,64 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   container: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxl,
     justifyContent: 'center',
-    padding: 24,
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing.xl,
   },
   logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#1e293b',
+    width: 76,
+    height: 76,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  logoIcon: {
-    fontSize: 28,
+    marginBottom: Spacing.md,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#f8fafc',
-    marginBottom: 6,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
+    textAlign: 'center',
   },
   card: {
-    backgroundColor: '#1e293b',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
     borderWidth: 1,
-    borderColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
   },
   errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+    borderWidth: 1,
   },
   errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 13,
+    flex: 1,
     fontWeight: '600',
-    color: '#cbd5e1',
-    marginBottom: 8,
   },
-  input: {
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#334155',
+  submitBtn: {
+    marginTop: Spacing.sm,
   },
-  primaryButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 15,
+  footerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: Spacing.xl,
   },
-  buttonDisabled: {
-    opacity: 0.65,
-  },
-  primaryButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
+  linkText: {
     fontWeight: '700',
-  },
-  switchAuthContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 18,
-  },
-  switchAuthText: {
-    color: '#94a3b8',
-    fontSize: 14,
-  },
-  switchAuthLink: {
-    color: '#60a5fa',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
