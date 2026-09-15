@@ -21,6 +21,16 @@ import { Typography, Radius, Spacing } from '../constants/theme';
 import { Avatar, ChatBubble, TypingIndicator } from '../components/common';
 import api, { BASE_URL } from '../services/api';
 
+import {
+  getSocket,
+  joinChatRoom,
+  leaveChatRoom,
+  emitSocketMessage,
+  emitTyping,
+  emitStopTyping,
+  emitMessageRead,
+} from '../services/socket';
+
 export interface ChatMessageItem {
   id: number;
   conversation_id: number;
@@ -57,9 +67,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
+  const [isPeerOnline, setIsPeerOnline] = useState<boolean>(!!conversation.peer.is_online);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Helper chuyển đổi URL ảnh tương đối sang URL đầy đủ của server
   const resolveImageUrl = (url: string | null) => {
@@ -89,22 +101,135 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
   const markAsRead = useCallback(async () => {
     try {
       await api.put(`/conversations/${conversation.id}/read`);
+      if (user?.id) {
+        emitMessageRead(conversation.id, user.id, conversation.peer.id);
+      }
     } catch (err) {
       // Bỏ qua lỗi đánh dấu đã đọc
     }
-  }, [conversation.id]);
+  }, [conversation.id, conversation.peer.id, user?.id]);
 
   useEffect(() => {
     fetchMessages();
     markAsRead();
   }, [fetchMessages, markAsRead]);
 
-  // 3. Gửi tin nhắn Text
+  // 3. Quản lý kết nối Socket.IO Realtime
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    // Gia nhập room chat
+    joinChatRoom(conversation.id);
+
+    // Lắng nghe tin nhắn mới tới realtime
+    const handleReceiveMessage = (newMsg: ChatMessageItem) => {
+      if (Number(newMsg.conversation_id) === Number(conversation.id)) {
+        setMessages((prev) => {
+          // Tránh duplicate tin nhắn
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
+
+        // Nếu tin nhắn từ đối phương, đánh dấu đã xem ngay
+        if (newMsg.sender_id === conversation.peer.id) {
+          markAsRead();
+        }
+      }
+    };
+
+    // Lắng nghe đối phương đang gõ tin nhắn
+    const handleDisplayTyping = (data: { conversation_id: number; username?: string }) => {
+      if (Number(data.conversation_id) === Number(conversation.id)) {
+        setIsPeerTyping(true);
+      }
+    };
+
+    const handleHideTyping = (data: { conversation_id: number }) => {
+      if (Number(data.conversation_id) === Number(conversation.id)) {
+        setIsPeerTyping(false);
+      }
+    };
+
+    // Lắng nghe khi đối phương đã xem tin nhắn của mình
+    const handleMessagesMarkedRead = (data: { conversation_id: number; reader_id: number }) => {
+      if (Number(data.conversation_id) === Number(conversation.id)) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.sender_id === user?.id ? { ...msg, is_read: true } : msg
+          )
+        );
+      }
+    };
+
+    // Lắng nghe trạng thái online/offline của user
+    const handleUserOnline = (data: { userId: number }) => {
+      if (Number(data.userId) === Number(conversation.peer.id)) {
+        setIsPeerOnline(true);
+      }
+    };
+
+    const handleUserOffline = (data: { userId: number }) => {
+      if (Number(data.userId) === Number(conversation.peer.id)) {
+        setIsPeerOnline(false);
+      }
+    };
+
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('display_typing', handleDisplayTyping);
+    socket.on('hide_typing', handleHideTyping);
+    socket.on('messages_marked_read', handleMessagesMarkedRead);
+    socket.on('user_online', handleUserOnline);
+    socket.on('user_offline', handleUserOffline);
+
+    // Kiểm tra trạng thái online hiện tại qua socket
+    socket.emit('check_user_online', { userId: conversation.peer.id }, (res: any) => {
+      if (res && typeof res.isOnline === 'boolean') {
+        setIsPeerOnline(res.isOnline);
+      }
+    });
+
+    return () => {
+      leaveChatRoom(conversation.id);
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('display_typing', handleDisplayTyping);
+      socket.off('hide_typing', handleHideTyping);
+      socket.off('messages_marked_read', handleMessagesMarkedRead);
+      socket.off('user_online', handleUserOnline);
+      socket.off('user_offline', handleUserOffline);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [conversation.id, conversation.peer.id, markAsRead, user?.id]);
+
+  // 4. Xử lý gõ chữ (Typing indicator emitter)
+  const handleInputChange = (text: string) => {
+    setInputText(text);
+
+    if (text.trim().length > 0) {
+      emitTyping(conversation.id, conversation.peer.id, user?.username);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        emitStopTyping(conversation.id, conversation.peer.id);
+      }, 2000);
+    } else {
+      emitStopTyping(conversation.id, conversation.peer.id);
+    }
+  };
+
+  // 5. Gửi tin nhắn Text
   const handleSendText = async () => {
     const textToSend = inputText.trim();
     if (!textToSend || isSending) return;
 
     setInputText('');
+    emitStopTyping(conversation.id, conversation.peer.id);
 
     // Optimistic UI: hiển thị tin nhắn ngay
     const tempId = Date.now();
@@ -130,14 +255,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       });
 
       if (res.data?.success && res.data?.data) {
+        const savedMsg = res.data.data;
         // Cập nhật ID thật từ server
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? res.data.data : m))
+          prev.map((m) => (m.id === tempId ? savedMsg : m))
         );
+
+        // Bắn Socket Realtime cho đối phương
+        emitSocketMessage(conversation.id, conversation.peer.id, savedMsg);
       }
     } catch (err: any) {
       console.error('Lỗi gửi tin nhắn:', err);
-      // Đánh dấu hoặc giữ tin nhắn
     } finally {
       setIsSending(false);
     }
@@ -196,9 +324,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
         });
 
         if (uploadRes.data?.success && uploadRes.data?.data) {
+          const savedImgMsg = uploadRes.data.data;
           setMessages((prev) =>
-            prev.map((m) => (m.id === tempId ? uploadRes.data.data : m))
+            prev.map((m) => (m.id === tempId ? savedImgMsg : m))
           );
+
+          // Bắn Socket Realtime gửi ảnh tới đối phương
+          emitSocketMessage(conversation.id, conversation.peer.id, savedImgMsg);
         }
       }
     } catch (e) {
@@ -234,15 +366,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             uri={conversation.peer.avatar_url}
             name={conversation.peer.username}
             size="sm"
-            isOnline={conversation.peer.is_online}
+            isOnline={isPeerOnline}
             showStatus
           />
           <View style={styles.headerInfo}>
             <Text style={[Typography.title, styles.headerName, { color: colors.textPrimary }]} numberOfLines={1}>
               {conversation.peer.username}
             </Text>
-            <Text style={[Typography.caption, { color: conversation.peer.is_online ? colors.online : colors.textSecondary }]}>
-              {conversation.peer.is_online ? 'Đang hoạt động' : 'Ngoại tuyến'}
+            <Text style={[Typography.caption, { color: isPeerOnline ? colors.online : colors.textSecondary }]}>
+              {isPeerOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}
             </Text>
           </View>
         </View>
@@ -337,7 +469,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
               placeholder="Nhập tin nhắn..."
               placeholderTextColor={colors.textPlaceholder}
               value={inputText}
-              onChangeText={setInputText}
+              onChangeText={handleInputChange}
               multiline
               maxLength={1000}
             />

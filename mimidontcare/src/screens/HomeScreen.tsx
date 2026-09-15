@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { getSocket } from '../services/socket';
 
 export interface ConversationItem {
   id: number;
@@ -73,6 +74,48 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  // Lắng nghe tin nhắn realtime trên Socket để cập nhật danh sách hội thoại
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleRealtimeMessage = (message: any) => {
+      if (!message || !message.conversation_id) return;
+
+      setConversations((prev) => {
+        const convIndex = prev.findIndex((c) => c.id === message.conversation_id);
+
+        if (convIndex !== -1) {
+          // Hội thoại đã có: cập nhật tin nhắn cuối và tăng số tin chưa đọc (nếu đối phương gửi)
+          const targetConv = prev[convIndex];
+          const isFromPeer = message.sender_id !== user?.id;
+
+          const updatedConv: ConversationItem = {
+            ...targetConv,
+            last_message: message,
+            unread_count: isFromPeer ? (targetConv.unread_count || 0) + 1 : targetConv.unread_count,
+            updated_at: message.created_at || new Date().toISOString(),
+          };
+
+          const remaining = prev.filter((_, idx) => idx !== convIndex);
+          return [updatedConv, ...remaining];
+        } else {
+          // Nếu chưa có hội thoại trong list, gọi tải lại
+          fetchConversations();
+          return prev;
+        }
+      });
+    };
+
+    socket.on('receive_message', handleRealtimeMessage);
+    socket.on('conversation_updated', handleRealtimeMessage);
+
+    return () => {
+      socket.off('receive_message', handleRealtimeMessage);
+      socket.off('conversation_updated', handleRealtimeMessage);
+    };
+  }, [fetchConversations, user?.id]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

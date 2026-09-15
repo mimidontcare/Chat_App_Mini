@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
+import { initSocket, disconnectSocket } from '../services/socket';
 
 export interface User {
   id: number;
@@ -35,8 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = await AsyncStorage.getItem('@auth_user');
 
         if (storedToken && storedUser) {
+          const parsedUser = JSON.parse(storedUser);
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(parsedUser);
+
+          // Khởi động kết nối Socket Realtime
+          initSocket(storedToken, parsedUser.id);
 
           // Kiểm tra tính hợp lệ của token với Backend
           try {
@@ -44,10 +49,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (res.data?.success && res.data?.user) {
               setUser(res.data.user);
               await AsyncStorage.setItem('@auth_user', JSON.stringify(res.data.user));
+              initSocket(storedToken, res.data.user.id);
             }
           } catch (verifyError) {
             console.log('Token hết hạn hoặc server chưa sẵn sàng, xóa session:', verifyError);
             await AsyncStorage.multiRemove(['@auth_token', '@auth_user']);
+            disconnectSocket();
             setUser(null);
             setToken(null);
           }
@@ -72,6 +79,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await AsyncStorage.setItem('@auth_token', receivedToken);
       await AsyncStorage.setItem('@auth_user', JSON.stringify(receivedUser));
+
+      // Kết nối Socket Realtime
+      initSocket(receivedToken, receivedUser.id);
     }
   };
 
@@ -89,6 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       await AsyncStorage.setItem('@auth_token', receivedToken);
       await AsyncStorage.setItem('@auth_user', JSON.stringify(receivedUser));
+
+      // Kết nối Socket Realtime
+      initSocket(receivedToken, receivedUser.id);
     }
   };
 
@@ -105,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Bỏ qua lỗi mạng khi logout
     } finally {
+      disconnectSocket();
       await AsyncStorage.multiRemove(['@auth_token', '@auth_user']);
       setUser(null);
       setToken(null);
