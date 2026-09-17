@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { Spacing } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
@@ -56,19 +57,19 @@ export default function HomeScreen() {
           <Text style={styles.cardTitle}>Tiến Độ Dự Án</Text>
           <View style={styles.divider} />
           <View style={styles.taskItem}>
-            <Text style={styles.taskIcon}>✅</Text>
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
             <Text style={styles.taskText}>Phase 0: Chuẩn bị môi trường & MySQL DB</Text>
           </View>
           <View style={styles.taskItem}>
-            <Text style={styles.taskIcon}>✅</Text>
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
             <Text style={styles.taskText}>Phase 1: Backend Authentication (Bcrypt + JWT)</Text>
           </View>
           <View style={styles.taskItem}>
-            <Text style={styles.taskIcon}>✅</Text>
+            <Ionicons name="checkmark-circle" size={18} color="#10b981" />
             <Text style={styles.taskText}>Phase 2: Frontend Auth (Axios + AuthContext)</Text>
           </View>
           <View style={styles.taskItem}>
-            <Text style={styles.taskIcon}>⏳</Text>
+            <Ionicons name="time-outline" size={18} color="#f59e0b" />
             <Text style={styles.taskText}>Phase 3: Navigation & Profile (Tiếp theo)</Text>
           </View>
         </View>

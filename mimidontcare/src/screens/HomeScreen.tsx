@@ -319,7 +319,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             const isMeLastSender = item.last_message?.sender_id === user?.id;
             const messagePreview = item.last_message
               ? item.last_message.message_type === 'image'
-                ? '📷 [Hình ảnh]'
+                ? '[Hình ảnh]'
                 : (isMeLastSender ? 'Bạn: ' : '') + item.last_message.content
               : 'Bắt đầu cuộc trò chuyện...';
 

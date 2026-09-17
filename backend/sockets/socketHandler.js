@@ -22,7 +22,7 @@ const socketHandler = (io) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`🔌 Client kết nối Socket: ${socket.id}`);
+    console.log(`Client kết nối Socket: ${socket.id}`);
 
     // Helper đăng ký user online
     const registerUserOnline = (userId) => {
@@ -35,7 +35,7 @@ const socketHandler = (io) => {
       // Tham gia vào phòng riêng của chính mình để nhận thông báo / tin nhắn trực tiếp
       socket.join(`user_${userId}`);
 
-      console.log(`👤 User #${userId} online (Sockets: ${onlineUsers.get(userId).size})`);
+      console.log(`User #${userId} online (Sockets: ${onlineUsers.get(userId).size})`);
 
       // Thông báo cho mọi người biết user này vừa online
       io.emit('user_online', { userId });
@@ -88,14 +88,14 @@ const socketHandler = (io) => {
     socket.on('join_chat', (conversationId) => {
       const room = `conv_${conversationId}`;
       socket.join(room);
-      console.log(`📥 Socket ${socket.id} (User #${socket.userId}) tham gia phòng ${room}`);
+      console.log(`Socket ${socket.id} (User #${socket.userId}) tham gia phòng ${room}`);
     });
 
     // 3. Sự kiện 'leave_chat': Rời khỏi phòng trò chuyện
     socket.on('leave_chat', (conversationId) => {
       const room = `conv_${conversationId}`;
       socket.leave(room);
-      console.log(`📤 Socket ${socket.id} rời phòng ${room}`);
+      console.log(`Socket ${socket.id} rời phòng ${room}`);
     });
 
     // 4. Sự kiện 'send_message': Phát tin nhắn realtime
@@ -103,7 +103,7 @@ const socketHandler = (io) => {
       const { conversation_id, receiver_id, message } = data;
       if (!conversation_id || !message) return;
 
-      console.log(`💬 Phát tin nhắn realtime trong conv_${conversation_id}:`, message.content || '[Image]');
+      console.log(`Phát tin nhắn realtime trong conv_${conversation_id}:`, message.content || '[Image]');
 
       // Gửi cho tất cả những người đang mở phòng chat này (trừ chính người gửi)
       socket.to(`conv_${conversation_id}`).emit('receive_message', message);
@@ -156,7 +156,7 @@ const socketHandler = (io) => {
 
     // 7. Ngắt kết nối và dọn dẹp
     socket.on('disconnect', () => {
-      console.log(`🔌 Client ngắt kết nối Socket: ${socket.id}`);
+      console.log(`Client ngắt kết nối Socket: ${socket.id}`);
       const userId = socket.userId;
 
       if (userId && onlineUsers.has(userId)) {
@@ -166,7 +166,7 @@ const socketHandler = (io) => {
         // Nếu không còn socket nào của user này -> Đánh dấu offline hoàn toàn
         if (userSockets.size === 0) {
           onlineUsers.delete(userId);
-          console.log(`👤 User #${userId} đã offline hoàn toàn`);
+          console.log(`User #${userId} đã offline hoàn toàn`);
           io.emit('user_offline', { userId });
         }
       }

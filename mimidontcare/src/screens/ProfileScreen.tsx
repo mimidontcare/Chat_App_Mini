@@ -122,7 +122,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             onPress={handleEdit}
             activeOpacity={0.8}
           >
-            <Text style={styles.editButtonText}>✏️ Chỉnh sửa thông tin cá nhân</Text>
+            <Text style={styles.editButtonText}>Chỉnh sửa thông tin cá nhân</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -130,7 +130,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             onPress={handleLogout}
             activeOpacity={0.8}
           >
-            <Text style={styles.logoutButtonText}>🚪 Đăng xuất</Text>
+            <Text style={styles.logoutButtonText}>Đăng xuất</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

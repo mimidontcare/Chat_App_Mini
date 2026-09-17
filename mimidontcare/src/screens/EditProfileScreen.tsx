@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
 
@@ -171,7 +172,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
                   </View>
                 )}
                 <View style={styles.cameraBadge}>
-                  <Text style={styles.cameraIcon}>📷</Text>
+                  <Ionicons name="camera" size={15} color="#ffffff" />
                 </View>
               </View>
             </TouchableOpacity>

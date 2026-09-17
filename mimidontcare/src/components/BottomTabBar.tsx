@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 interface BottomTabBarProps {
   activeTab: 'chats' | 'profile';
@@ -14,7 +15,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
         onPress={() => onTabChange('chats')}
         activeOpacity={0.7}
       >
-        <Text style={styles.tabIcon}>{activeTab === 'chats' ? '💬' : '🗨️'}</Text>
+        <Ionicons
+          name={activeTab === 'chats' ? 'chatbubbles' : 'chatbubbles-outline'}
+          size={22}
+          color={activeTab === 'chats' ? '#60a5fa' : '#94a3b8'}
+          style={styles.tabIcon}
+        />
         <Text style={[styles.tabLabel, activeTab === 'chats' && styles.activeTabLabel]}>
           Đoạn chat
         </Text>
@@ -25,7 +31,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
         onPress={() => onTabChange('profile')}
         activeOpacity={0.7}
       >
-        <Text style={styles.tabIcon}>{activeTab === 'profile' ? '👤' : '👤'}</Text>
+        <Ionicons
+          name={activeTab === 'profile' ? 'person' : 'person-outline'}
+          size={22}
+          color={activeTab === 'profile' ? '#60a5fa' : '#94a3b8'}
+          style={styles.tabIcon}
+        />
         <Text style={[styles.tabLabel, activeTab === 'profile' && styles.activeTabLabel]}>
           Cá nhân
         </Text>

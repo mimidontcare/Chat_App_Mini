@@ -429,7 +429,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
                 <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>
-                  Chưa có tin nhắn nào trong cuộc trò chuyện này.{'\n'}Hãy gửi lời chào đầu tiên! 👋
+                  Chưa có tin nhắn nào trong cuộc trò chuyện này.{'\n'}Hãy gửi lời chào đầu tiên!
                 </Text>
               </View>
             }

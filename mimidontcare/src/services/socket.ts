@@ -29,33 +29,33 @@ export const initSocket = (token?: string | null, userId?: number): Socket => {
   });
 
   socket.on('connect', () => {
-    console.log('⚡ Socket.IO connected:', socket?.id);
+    console.log('[Socket.IO] Connected:', socket?.id);
     if (userId) {
       socket?.emit('setup', { token, userId });
     }
   });
 
   socket.on('reconnect', (attemptNumber) => {
-    console.log(`🔄 Socket.IO reconnected sau ${attemptNumber} lần thử:`, socket?.id);
+    console.log(`[Socket.IO] Reconnected sau ${attemptNumber} lần thử:`, socket?.id);
     if (userId) {
       socket?.emit('setup', { token, userId });
     }
   });
 
   socket.on('disconnect', (reason) => {
-    console.log('🔌 Socket.IO disconnected:', reason);
+    console.log('[Socket.IO] Disconnected:', reason);
   });
 
   socket.on('connect_error', (error) => {
-    console.warn('⚠️ Socket connection error:', error.message);
+    console.warn('[Socket.IO] Connection error:', error.message);
   });
 
   socket.on('reconnect_error', (error) => {
-    console.warn('⚠️ Socket reconnect attempt error:', error.message);
+    console.warn('[Socket.IO] Reconnect attempt error:', error.message);
   });
 
   socket.on('reconnect_failed', () => {
-    console.warn('❌ Socket reconnection failed hoàn toàn');
+    console.warn('[Socket.IO] Reconnection failed hoàn toàn');
   });
 
   return socket;

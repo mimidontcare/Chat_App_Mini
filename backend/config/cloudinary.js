@@ -39,7 +39,7 @@ const uploadToCloudinary = async (filePath, folder = 'chat_app/chat') => {
         isCloudinary: true,
       };
     } catch (error) {
-      console.warn('⚠️ Lỗi upload Cloudinary, chuyển sang fallback lưu trữ local:', error.message);
+      console.warn('Lỗi upload Cloudinary, chuyển sang fallback lưu trữ local:', error.message);
     }
   }
 

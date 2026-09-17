@@ -83,7 +83,7 @@ app.use((err, req, res, next) => {
     });
   }
 
-  console.error('💥 Unhandled Server Error:', err.message || err);
+  console.error('[Error] Unhandled Server Error:', err.message || err);
   return res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Đã xảy ra lỗi máy chủ nội bộ!',
@@ -95,15 +95,15 @@ const startServer = async () => {
   try {
     const connection = await db.getConnection();
     console.log('========================================');
-    console.log('✅ Database connected successfully (MySQL)!');
+    console.log('Database connected successfully (MySQL)!');
     console.log('========================================');
     connection.release();
 
     server.listen(PORT, () => {
-      console.log(`🚀 Server + Socket.IO is running on http://localhost:${PORT}`);
+      console.log(`Server + Socket.IO is running on http://localhost:${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('Database connection failed:', error.message);
     process.exit(1);
   }
 };

@@ -45,7 +45,7 @@ export const CURRENT_USER: MockUser = {
   username: 'Alex Nguyen',
   email: 'alex.nguyen@example.com',
   avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400',
-  status_message: 'Available to chat 🚀',
+  status_message: 'Available to chat',
   is_online: true,
 };
 
