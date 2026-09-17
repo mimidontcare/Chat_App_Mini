@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "mimidontcare",
-    "slug": "mimidontcare",
+    "name": "fronend",
+    "slug": "fronend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mimidontcare",
+    "scheme": "fronend",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
