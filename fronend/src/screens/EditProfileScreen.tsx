@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import api, { BASE_URL } from '../services/api';
+import { appendImageToFormData } from '../utils/fileUpload';
 
 interface EditProfileScreenProps {
   onBack: () => void;
@@ -28,6 +29,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
   const [username, setUsername] = useState(user?.username || '');
   const [email, setEmail] = useState(user?.email || '');
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatar_url || null);
+  const [avatarAsset, setAvatarAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isNewImageSelected, setIsNewImageSelected] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setAvatarUri(result.assets[0].uri);
+        setAvatarAsset(result.assets[0]);
         setIsNewImageSelected(true);
       }
     } catch (err) {
@@ -77,15 +80,12 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
       // Nếu người dùng chọn ảnh mới từ máy -> Upload lên Backend
       if (isNewImageSelected && avatarUri) {
         const formData = new FormData();
-        const filename = avatarUri.split('/').pop() || 'avatar.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-
-        formData.append('avatar', {
+        await appendImageToFormData(formData, 'avatar', {
           uri: avatarUri,
-          name: filename,
-          type,
-        } as any);
+          name: avatarAsset?.fileName,
+          type: avatarAsset?.mimeType,
+          file: (avatarAsset as any)?.file,
+        });
 
         const uploadRes = await api.post('/users/avatar', formData, {
           headers: {
@@ -114,9 +114,14 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
 
       if (updateRes.data?.success && updateRes.data?.user) {
         await updateUser(updateRes.data.user);
-        Alert.alert('Thành công', 'Thông tin cá nhân đã được cập nhật!', [
-          { text: 'OK', onPress: onBack },
-        ]);
+        if (Platform.OS === 'web') {
+          alert('Thông tin cá nhân đã được cập nhật!');
+          onBack();
+        } else {
+          Alert.alert('Thành công', 'Thông tin cá nhân đã được cập nhật!', [
+            { text: 'OK', onPress: onBack },
+          ]);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Cập nhật thất bại. Vui lòng thử lại!');

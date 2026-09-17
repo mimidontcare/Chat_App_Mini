@@ -16,4 +16,8 @@ router.post('/image', uploadChatImage.single('image'), chatController.sendImageM
 // Đánh dấu tin nhắn trong conversation đã đọc
 router.put('/conversation/:id/read', chatController.markAsRead);
 
+// Cập nhật reaction biểu cảm cho tin nhắn
+router.post('/:messageId/reaction', chatController.updateReaction);
+router.put('/:messageId/reaction', chatController.updateReaction);
+
 module.exports = router;

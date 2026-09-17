@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -26,6 +27,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const handleEdit = onEditProfile || onNavigateToEditProfile;
 
   const handleLogout = () => {
+    const doLogout = async () => {
+      if (onLogoutPress) onLogoutPress();
+      await logout();
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?');
+      if (confirmed) {
+        doLogout();
+      }
+      return;
+    }
+
     Alert.alert(
       'Xác nhận đăng xuất',
       'Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?',
@@ -34,10 +48,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         {
           text: 'Đăng xuất',
           style: 'destructive',
-          onPress: async () => {
-            if (onLogoutPress) onLogoutPress();
-            await logout();
-          },
+          onPress: doLogout,
         },
       ]
     );

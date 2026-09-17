@@ -72,9 +72,12 @@ CREATE TABLE IF NOT EXISTS messages (
     content TEXT NULL,
     image_url VARCHAR(500) DEFAULT NULL,
     is_read BOOLEAN DEFAULT FALSE,
+    reaction VARCHAR(20) DEFAULT NULL,
+    reaction_user_id INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reaction_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- ==========================================

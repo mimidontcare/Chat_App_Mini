@@ -154,6 +154,24 @@ const socketHandler = (io) => {
       }
     });
 
+    // 7. Sự kiện 'send_reaction': Thao tác thả/gỡ biểu cảm cảm xúc tin nhắn realtime
+    socket.on('send_reaction', ({ conversation_id, receiver_id, message_id, reaction, user_id }) => {
+      if (!conversation_id || !message_id) return;
+
+      const reactionData = {
+        conversation_id,
+        message_id,
+        reaction,
+        user_id: user_id || socket.userId,
+      };
+
+      socket.to(`conv_${conversation_id}`).emit('receive_reaction', reactionData);
+
+      if (receiver_id) {
+        socket.to(`user_${receiver_id}`).emit('receive_reaction', reactionData);
+      }
+    });
+
     // 7. Ngắt kết nối và dọn dẹp
     socket.on('disconnect', () => {
       console.log(`Client ngắt kết nối Socket: ${socket.id}`);

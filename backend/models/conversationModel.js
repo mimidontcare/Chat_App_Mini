@@ -249,6 +249,8 @@ const conversationModel = {
         m.content,
         m.image_url,
         m.is_read,
+        m.reaction,
+        m.reaction_user_id,
         m.created_at,
         u.username AS sender_username,
         u.avatar_url AS sender_avatar
@@ -308,6 +310,44 @@ const conversationModel = {
       [conversationId, userId]
     );
     return { success: true };
+  },
+
+  // 8. Cập nhật hoặc thu hồi Reaction cảm xúc cho tin nhắn
+  async updateMessageReaction(messageId, userId, reaction) {
+    const [msgRows] = await db.query(
+      `SELECT m.id, m.conversation_id, m.reaction, m.reaction_user_id,
+              c.user1_id, c.user2_id
+       FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE m.id = ? AND (c.user1_id = ? OR c.user2_id = ?)`,
+      [messageId, userId, userId]
+    );
+
+    if (msgRows.length === 0) {
+      throw new Error('Tin nhắn không tồn tại hoặc bạn không có quyền tương tác!');
+    }
+
+    const currentMsg = msgRows[0];
+    let newReaction = reaction;
+    let newReactionUserId = userId;
+
+    // Toggle: Nếu bấm lại đúng reaction cũ của chính mình thì gỡ bỏ
+    if (currentMsg.reaction === reaction && currentMsg.reaction_user_id === userId) {
+      newReaction = null;
+      newReactionUserId = null;
+    }
+
+    await db.query(
+      'UPDATE messages SET reaction = ?, reaction_user_id = ? WHERE id = ?',
+      [newReaction, newReactionUserId, messageId]
+    );
+
+    return {
+      messageId: Number(messageId),
+      conversationId: currentMsg.conversation_id,
+      reaction: newReaction,
+      reaction_user_id: newReactionUserId,
+    };
   },
 };
 

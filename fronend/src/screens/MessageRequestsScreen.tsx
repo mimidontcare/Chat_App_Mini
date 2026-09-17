@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,13 +60,18 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
     try {
       setRequests((prev) => prev.filter((r) => r.id !== conv.id));
       await api.post(`/conversations/request/${conv.id}/accept`);
-      Alert.alert('Thành công', 'Đã chuyển cuộc trò chuyện vào hộp thư chính!', [
-        {
-          text: 'Mở chat ngay',
-          onPress: () => onOpenChat(conv),
-        },
-        { text: 'Đóng', style: 'cancel' },
-      ]);
+      if (Platform.OS === 'web') {
+        const openNow = window.confirm('Đã chuyển cuộc trò chuyện vào hộp thư chính! Bạn có muốn mở chat ngay không?');
+        if (openNow) onOpenChat(conv);
+      } else {
+        Alert.alert('Thành công', 'Đã chuyển cuộc trò chuyện vào hộp thư chính!', [
+          {
+            text: 'Mở chat ngay',
+            onPress: () => onOpenChat(conv),
+          },
+          { text: 'Đóng', style: 'cancel' },
+        ]);
+      }
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Không thể chấp nhận tin nhắn chờ.');
       await fetchMessageRequests();
@@ -74,6 +80,24 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
 
   // Ẩn / từ chối tin nhắn chờ
   const handleDelete = (id: number) => {
+    const doDelete = async () => {
+      try {
+        setRequests((prev) => prev.filter((r) => r.id !== id));
+        await api.post(`/conversations/request/${id}/reject`);
+      } catch (err: any) {
+        Alert.alert('Lỗi', err.message || 'Không thể xóa tin nhắn chờ.');
+        await fetchMessageRequests();
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tin nhắn chờ này? Lịch sử tin nhắn sẽ bị xóa vĩnh viễn.');
+      if (confirmed) {
+        doDelete();
+      }
+      return;
+    }
+
     Alert.alert(
       'Xóa tin nhắn chờ',
       'Bạn có chắc chắn muốn xóa tin nhắn chờ này? Lịch sử tin nhắn sẽ bị xóa vĩnh viễn.',
@@ -82,15 +106,7 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
         {
           text: 'Xóa',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              setRequests((prev) => prev.filter((r) => r.id !== id));
-              await api.post(`/conversations/request/${id}/reject`);
-            } catch (err: any) {
-              Alert.alert('Lỗi', err.message || 'Không thể xóa tin nhắn chờ.');
-              await fetchMessageRequests();
-            }
-          },
+          onPress: doDelete,
         },
       ]
     );

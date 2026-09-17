@@ -15,7 +15,10 @@ const chatDir = path.join(__dirname, '..', 'uploads', 'chat');
 // Kiểm tra định dạng file ảnh (JPEG, PNG, WEBP, GIF, JPG)
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/jpg'];
-  if (allowedMimeTypes.includes(file.mimetype)) {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+  if (allowedMimeTypes.includes(file.mimetype) || allowedExts.includes(ext)) {
     cb(null, true);
   } else {
     cb(new Error('Chỉ chấp nhận các định dạng file ảnh hợp lệ: JPEG, PNG, WEBP, GIF!'), false);

@@ -267,6 +267,33 @@ const chatController = {
       });
     }
   },
+
+  // Cập nhật Reaction biểu cảm cho tin nhắn
+  async updateReaction(req, res) {
+    try {
+      const userId = req.user.id;
+      const { messageId } = req.params;
+      const { reaction } = req.body;
+
+      const result = await conversationModel.updateMessageReaction(
+        Number(messageId),
+        userId,
+        reaction || null
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Cập nhật reaction thành công!',
+        data: result,
+      });
+    } catch (error) {
+      console.error('Lỗi API updateReaction:', error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Lỗi khi cập nhật reaction!',
+      });
+    }
+  },
 };
 
 module.exports = chatController;

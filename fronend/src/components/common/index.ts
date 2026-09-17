@@ -5,3 +5,5 @@ export * from './ChatBubble';
 export * from './Loading';
 export * from './EmptyState';
 export * from './TypingIndicator';
+export * from './EmojiPicker';
+export * from './ReactionPicker';

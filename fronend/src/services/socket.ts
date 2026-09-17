@@ -149,3 +149,22 @@ export const requestOnlineUsers = () => {
     socket.emit('get_online_users');
   }
 };
+
+// Helper: Bắn sự kiện thả/gỡ biểu cảm reaction
+export const emitMessageReaction = (
+  conversationId: number,
+  receiverId: number,
+  messageId: number,
+  reaction: string | null,
+  userId: number
+) => {
+  if (socket?.connected) {
+    socket.emit('send_reaction', {
+      conversation_id: conversationId,
+      receiver_id: receiverId,
+      message_id: messageId,
+      reaction,
+      user_id: userId,
+    });
+  }
+};

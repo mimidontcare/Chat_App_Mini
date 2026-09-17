@@ -118,36 +118,63 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
 
       case 'request_sent':
         return (
-          <Button
-            title="Đã gửi lời mời"
-            onPress={() => {}}
-            variant="secondary"
-            size="sm"
-            disabled
-          />
+          <View style={styles.actionRow}>
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="primary"
+              size="sm"
+              leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
+            />
+            <Button
+              title="Đã gửi lời mời"
+              onPress={() => {}}
+              variant="secondary"
+              size="sm"
+              disabled
+            />
+          </View>
         );
 
       case 'request_received':
         return (
-          <Button
-            title="Chấp nhận"
-            onPress={() => handleAcceptFriend(user)}
-            variant="primary"
-            size="sm"
-            leftIcon={<Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-          />
+          <View style={styles.actionRow}>
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="secondary"
+              size="sm"
+              leftIcon={<Ionicons name="chatbubble" size={14} color={colors.primary} />}
+            />
+            <Button
+              title="Chấp nhận"
+              onPress={() => handleAcceptFriend(user)}
+              variant="primary"
+              size="sm"
+              leftIcon={<Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            />
+          </View>
         );
 
       case 'none':
       default:
         return (
-          <Button
-            title="Kết bạn"
-            onPress={() => handleAddFriend(user)}
-            variant="outline"
-            size="sm"
-            leftIcon={<Ionicons name="person-add" size={14} color={colors.primary} />}
-          />
+          <View style={styles.actionRow}>
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="primary"
+              size="sm"
+              leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
+            />
+            <Button
+              title="Kết bạn"
+              onPress={() => handleAddFriend(user)}
+              variant="outline"
+              size="sm"
+              leftIcon={<Ionicons name="person-add" size={14} color={colors.primary} />}
+            />
+          </View>
         );
     }
   };
@@ -161,7 +188,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
           style={styles.backBtn}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Back to chats"
+          accessibilityLabel="Trở về"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
@@ -176,6 +203,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
             onRightIconPress={() => setQuery('')}
             containerStyle={styles.searchContainerStyle}
             autoFocus
+            returnKeyType="search"
           />
         </View>
       </View>
@@ -195,10 +223,14 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         data={users}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <View
-            style={[
+          <Pressable
+            onPress={() => item.relationship !== 'self' && onStartChat(item)}
+            style={({ pressed }) => [
               styles.userCard,
-              { backgroundColor: colors.surface, borderBottomColor: colors.borderLight },
+              {
+                backgroundColor: pressed ? colors.surfaceSecondary : colors.surface,
+                borderBottomColor: colors.borderLight,
+              },
             ]}
           >
             <Avatar
@@ -219,7 +251,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
             </View>
 
             <View style={styles.actionWrapper}>{renderRelationshipAction(item)}</View>
-          </View>
+          </Pressable>
         )}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
@@ -292,6 +324,11 @@ const styles = StyleSheet.create({
   },
   actionWrapper: {
     justifyContent: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   selfBadge: {
     paddingHorizontal: Spacing.md,

@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,9 +19,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../constants/theme';
-import { Avatar, ChatBubble, TypingIndicator } from '../components/common';
+import {
+  Avatar,
+  ChatBubble,
+  TypingIndicator,
+  EmojiPicker,
+  ReactionPicker,
+} from '../components/common';
 import api, { BASE_URL } from '../services/api';
 import { formatMessageTime } from '../utils/date';
+import { appendImageToFormData } from '../utils/fileUpload';
 
 import {
   getSocket,
@@ -30,6 +38,7 @@ import {
   emitTyping,
   emitStopTyping,
   emitMessageRead,
+  emitMessageReaction,
 } from '../services/socket';
 
 export interface ChatMessageItem {
@@ -40,6 +49,8 @@ export interface ChatMessageItem {
   content: string;
   image_url: string | null;
   is_read: boolean;
+  reaction?: string | null;
+  reaction_user_id?: number | null;
   created_at: string;
 }
 
@@ -70,6 +81,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [isPeerOnline, setIsPeerOnline] = useState<boolean>(!!conversation.peer.is_online);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<ChatMessageItem | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,12 +189,30 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       }
     };
 
+    const handleReceiveReaction = (data: {
+      conversation_id: number;
+      message_id: number;
+      reaction: string | null;
+      user_id: number;
+    }) => {
+      if (Number(data.conversation_id) === Number(conversation.id)) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === Number(data.message_id)
+              ? { ...m, reaction: data.reaction, reaction_user_id: data.user_id }
+              : m
+          )
+        );
+      }
+    };
+
     socket.on('receive_message', handleReceiveMessage);
     socket.on('display_typing', handleDisplayTyping);
     socket.on('hide_typing', handleHideTyping);
     socket.on('messages_marked_read', handleMessagesMarkedRead);
     socket.on('user_online', handleUserOnline);
     socket.on('user_offline', handleUserOffline);
+    socket.on('receive_reaction', handleReceiveReaction);
 
     // Kiểm tra trạng thái online hiện tại qua socket
     socket.emit('check_user_online', { userId: conversation.peer.id }, (res: any) => {
@@ -198,6 +229,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       socket.off('messages_marked_read', handleMessagesMarkedRead);
       socket.off('user_online', handleUserOnline);
       socket.off('user_offline', handleUserOffline);
+      socket.off('receive_reaction', handleReceiveReaction);
 
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -224,12 +256,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
     }
   };
 
-  // 5. Gửi tin nhắn Text
-  const handleSendText = async () => {
-    const textToSend = inputText.trim();
-    if (!textToSend || isSending) return;
+  // 5. Gửi tin nhắn Text / Emoji
+  const sendTextMessage = async (textToSend: string) => {
+    const trimmed = textToSend.trim();
+    if (!trimmed || isSending) return;
 
-    setInputText('');
+    if (textToSend === inputText) {
+      setInputText('');
+    }
+    setShowEmojiPicker(false);
     emitStopTyping(conversation.id, conversation.peer.id);
 
     // Optimistic UI: hiển thị tin nhắn ngay
@@ -239,7 +274,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       conversation_id: conversation.id,
       sender_id: user?.id || 0,
       message_type: 'text',
-      content: textToSend,
+      content: trimmed,
       image_url: null,
       is_read: false,
       created_at: new Date().toISOString(),
@@ -251,7 +286,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       setIsSending(true);
       const res = await api.post('/messages', {
         conversation_id: conversation.id,
-        content: textToSend,
+        content: trimmed,
         message_type: 'text',
       });
 
@@ -267,8 +302,61 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       }
     } catch (err: any) {
       console.error('Lỗi gửi tin nhắn:', err);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleSendText = () => sendTextMessage(inputText);
+  const handleSendQuickLike = () => sendTextMessage('👍');
+
+  const handleSelectEmoji = (emoji: string) => {
+    setInputText((prev) => prev + emoji);
+  };
+
+  const handleReactionPress = (msg: ChatMessageItem) => {
+    setSelectedMessageForReaction(msg);
+  };
+
+  const handleSelectReaction = async (reactionEmoji: string) => {
+    if (!selectedMessageForReaction || !user) return;
+    const targetMsg = selectedMessageForReaction;
+    const targetMsgId = targetMsg.id;
+
+    // Toggle: nếu bấm lại đúng reaction cũ của chính mình thì gỡ bỏ (null)
+    const newReaction =
+      targetMsg.reaction === reactionEmoji && targetMsg.reaction_user_id === user.id
+        ? null
+        : reactionEmoji;
+
+    // Optimistic Update
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === targetMsgId
+          ? {
+              ...m,
+              reaction: newReaction,
+              reaction_user_id: newReaction ? user.id : null,
+            }
+          : m
+      )
+    );
+
+    // Bắn realtime socket
+    emitMessageReaction(
+      conversation.id,
+      conversation.peer.id,
+      targetMsgId,
+      newReaction,
+      user.id
+    );
+
+    // Lưu cơ sở dữ liệu
+    try {
+      await api.post(`/messages/${targetMsgId}/reaction`, { reaction: newReaction });
+    } catch (err) {
+      console.error('Lỗi lưu reaction:', err);
     }
   };
 
@@ -300,7 +388,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
       });
 
       if (!result.canceled && result.assets && result.assets[0]?.uri) {
-        const imageUri = result.assets[0].uri;
+        const asset = result.assets[0];
+        const imageUri = asset.uri;
 
         // Optimistic UI
         const tempId = Date.now();
@@ -317,37 +406,42 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
 
         setMessages((prev) => [...prev, optimisticMsg]);
 
-        // Upload lên Backend
-        const formData = new FormData();
-        const filename = imageUri.split('/').pop() || 'chat_img.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        try {
+          // Upload lên Backend
+          const formData = new FormData();
+          formData.append('conversation_id', conversation.id.toString());
+          await appendImageToFormData(formData, 'image', {
+            uri: imageUri,
+            name: asset.fileName,
+            type: asset.mimeType,
+            file: (asset as any).file,
+          });
 
-        formData.append('conversation_id', conversation.id.toString());
-        formData.append('image', {
-          uri: imageUri,
-          name: filename,
-          type,
-        } as any);
+          const uploadRes = await api.post('/messages/image', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          });
 
-        const uploadRes = await api.post('/messages/image', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+          if (uploadRes.data?.success && uploadRes.data?.data) {
+            const savedImgMsg = uploadRes.data.data;
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? savedImgMsg : m))
+            );
 
-        if (uploadRes.data?.success && uploadRes.data?.data) {
-          const savedImgMsg = uploadRes.data.data;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === tempId ? savedImgMsg : m))
-          );
-
-          // Bắn Socket Realtime gửi ảnh tới đối phương
-          emitSocketMessage(conversation.id, conversation.peer.id, savedImgMsg);
+            // Bắn Socket Realtime gửi ảnh tới đối phương
+            emitSocketMessage(conversation.id, conversation.peer.id, savedImgMsg);
+          }
+        } catch (uploadErr: any) {
+          // Xóa tin nhắn tạm nếu gửi thất bại
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          console.error('Lỗi khi tải ảnh lên server:', uploadErr);
+          Alert.alert('Lỗi gửi ảnh', uploadErr.message || 'Không thể gửi ảnh lúc này.');
         }
       }
-    } catch (e) {
-      console.error('Lỗi chọn/gửi ảnh:', e);
+    } catch (e: any) {
+      console.error('Lỗi chọn ảnh:', e);
+      Alert.alert('Lỗi', e.message || 'Không thể mở thư viện ảnh.');
     }
   };
 
@@ -421,11 +515,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
                 } as any}
                 isMine={item.sender_id === user?.id}
                 onImagePress={(url) => setPreviewImageUrl(url)}
+                onReactionPress={handleReactionPress}
               />
             )}
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onScrollBeginDrag={() => setShowEmojiPicker(false)}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
                 <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>
@@ -461,7 +557,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             <Ionicons name="image-outline" size={24} color={colors.primary} />
           </Pressable>
 
-          {/* Ô nhập nội dung tin nhắn */}
+          {/* Ô nhập nội dung tin nhắn kèm nút Emoji */}
           <View
             style={[
               styles.inputContainer,
@@ -487,6 +583,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
               value={inputText}
               onChangeText={handleInputChange}
               onKeyPress={handleKeyPress}
+              onFocus={() => setShowEmojiPicker(false)}
               onSubmitEditing={Platform.OS !== 'web' ? handleSendText : undefined}
               blurOnSubmit={false}
               returnKeyType="send"
@@ -494,34 +591,83 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
               multiline
               maxLength={1000}
             />
+
+            {/* Nút bật/tắt Emoji Picker */}
+            <Pressable
+              onPress={() => setShowEmojiPicker((prev) => !prev)}
+              style={styles.emojiToggleBtn}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Chọn biểu tượng cảm xúc"
+            >
+              <Ionicons
+                name={showEmojiPicker ? 'happy' : 'happy-outline'}
+                size={22}
+                color={showEmojiPicker ? colors.primary : colors.textPlaceholder}
+              />
+            </Pressable>
           </View>
 
-          {/* Nút gửi tin nhắn */}
-          <Pressable
-            onPress={handleSendText}
-            style={[
-              styles.sendBtn,
-              {
-                backgroundColor: inputText.trim().length > 0 ? colors.primary : colors.surfaceSecondary,
-              },
-            ]}
-            disabled={!inputText.trim() || isSending}
-            hitSlop={6}
-            accessibilityRole="button"
-            accessibilityLabel="Gửi tin nhắn"
-          >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons
-                name="send"
-                size={18}
-                color={inputText.trim().length > 0 ? colors.onPrimary : colors.textMuted}
-              />
-            )}
-          </Pressable>
+          {/* Nút Gửi / Quick Like 👍 đặc trưng Messenger */}
+          {inputText.trim().length > 0 ? (
+            <Pressable
+              onPress={handleSendText}
+              style={[
+                styles.sendBtn,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              disabled={isSending}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Gửi tin nhắn"
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={colors.onPrimary}
+                />
+              )}
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={handleSendQuickLike}
+              style={styles.quickLikeBtn}
+              disabled={isSending}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Thả Like nhanh"
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#0084FF" />
+              ) : (
+                <Text style={styles.quickLikeIcon}>👍</Text>
+              )}
+            </Pressable>
+          )}
         </View>
+
+        {/* Emoji Picker Board */}
+        {showEmojiPicker && (
+          <EmojiPicker
+            visible={showEmojiPicker}
+            onSelectEmoji={handleSelectEmoji}
+            onClose={() => setShowEmojiPicker(false)}
+          />
+        )}
       </KeyboardAvoidingView>
+
+      {/* Reaction Picker Popup */}
+      <ReactionPicker
+        visible={!!selectedMessageForReaction}
+        currentReaction={selectedMessageForReaction?.reaction}
+        onSelectReaction={handleSelectReaction}
+        onClose={() => setSelectedMessageForReaction(null)}
+      />
 
       {/* Fullscreen Image Lightbox Modal */}
       <Modal
@@ -622,13 +768,18 @@ const styles = StyleSheet.create({
     maxHeight: 110,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
+    paddingLeft: Spacing.md,
+    paddingRight: 6,
+    paddingVertical: 6,
     marginHorizontal: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textInput: {
+    flex: 1,
     padding: 0,
     margin: 0,
+    maxHeight: 90,
     ...(Platform.OS === 'web'
       ? ({
           outlineStyle: 'none',
@@ -638,6 +789,12 @@ const styles = StyleSheet.create({
         } as any)
       : {}),
   },
+  emojiToggleBtn: {
+    padding: 4,
+    marginLeft: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   sendBtn: {
     width: 38,
     height: 38,
@@ -645,6 +802,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,
+  },
+  quickLikeBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  quickLikeIcon: {
+    fontSize: 26,
+    lineHeight: 30,
+    textAlign: 'center',
   },
   lightboxContainer: {
     flex: 1,
