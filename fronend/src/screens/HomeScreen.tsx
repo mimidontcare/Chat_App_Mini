@@ -131,7 +131,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               Xin chào 👋
             </Text>
             <Text
-              style={[Typography.title, styles.greetingName, { color: colors.textPrimary }]}
+              style={[Typography.headline, styles.greetingName, { color: colors.textPrimary }]}
               numberOfLines={1}
             >
               {user?.username || 'Bạn'}
@@ -146,7 +146,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               styles.iconBtn,
               {
                 backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary,
-                borderColor: colors.border,
+                borderColor: colors.borderLight,
               },
             ]}
             hitSlop={8}
@@ -154,8 +154,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             accessibilityLabel={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
           >
             <Ionicons
-              name={isDark ? "sunny-outline" : "moon-outline"}
-              size={20}
+              name={isDark ? "sunny" : "moon"}
+              size={18}
               color={isDark ? colors.warning : colors.textPrimary}
             />
           </Pressable>
@@ -166,14 +166,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               styles.iconBtn,
               {
                 backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary,
-                borderColor: colors.border,
+                borderColor: colors.borderLight,
               },
             ]}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Thông báo"
           >
-            <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
+            <Ionicons name="notifications-outline" size={19} color={colors.textPrimary} />
             {unreadNotifCount > 0 && (
               <View style={styles.headerBadgeWrapper}>
                 <Badge count={unreadNotifCount} size="sm" variant="destructive" />
@@ -195,7 +195,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Prominent Search Bar */}
+        {/* Compact Search Bar */}
         <View style={styles.searchWrapper}>
           <SearchBar
             value=""
@@ -216,19 +216,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.primary,
-                    opacity: pressed ? 0.8 : 1,
+                    opacity: pressed ? 0.85 : 1,
                   },
                   Shadows.sm,
                 ]}
               >
                 <View style={[styles.shortcutIconWrap, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="person-add" size={20} color={colors.primary} />
+                  <Ionicons name="person-add" size={18} color={colors.primary} />
                 </View>
                 <View style={styles.shortcutInfo}>
-                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '600' }]}>
+                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '700' }]}>
                     {friendRequestsCount} lời mời kết bạn
                   </Text>
-                  <Text style={[Typography.caption, { color: colors.primary }]}>
+                  <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
                     Xem ngay →
                   </Text>
                 </View>
@@ -243,19 +243,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.secondary,
-                    opacity: pressed ? 0.8 : 1,
+                    opacity: pressed ? 0.85 : 1,
                   },
                   Shadows.sm,
                 ]}
               >
                 <View style={[styles.shortcutIconWrap, { backgroundColor: 'rgba(99, 102, 241, 0.12)' }]}>
-                  <Ionicons name="mail-unread" size={20} color={colors.secondary} />
+                  <Ionicons name="mail-unread" size={18} color={colors.secondary} />
                 </View>
                 <View style={styles.shortcutInfo}>
-                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '600' }]}>
+                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '700' }]}>
                     {messageRequestsCount} tin nhắn chờ
                   </Text>
-                  <Text style={[Typography.caption, { color: colors.secondary }]}>
+                  <Text style={[Typography.caption, { color: colors.secondary, fontWeight: '600' }]}>
                     Kiểm tra →
                   </Text>
                 </View>
@@ -282,38 +282,54 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.friendsHorizontalList}
           >
-            {friends.map((friend) => (
-              <Pressable
-                key={friend.id}
-                onPress={() => onStartChatWithPeer ? onStartChatWithPeer(friend) : onOpenSearch?.()}
-                style={styles.friendStoryItem}
-              >
-                <Avatar
-                  uri={friend.avatar_url}
-                  name={friend.username}
-                  size="lg"
-                  showStatus
-                  isOnline={isUserOnline(friend.id)}
-                />
-                <Text
-                  style={[Typography.caption, styles.friendStoryName, { color: colors.textPrimary }]}
-                  numberOfLines={1}
+            {friends.map((friend) => {
+              const isOnline = isUserOnline(friend.id);
+              return (
+                <Pressable
+                  key={friend.id}
+                  onPress={() => onStartChatWithPeer ? onStartChatWithPeer(friend) : onOpenSearch?.()}
+                  style={styles.friendStoryItem}
                 >
-                  {friend.username}
-                </Text>
-              </Pressable>
-            ))}
+                  <Avatar
+                    uri={friend.avatar_url}
+                    name={friend.username}
+                    size="lg"
+                    showStatus
+                    isOnline={isOnline}
+                  />
+                  <Text
+                    style={[Typography.caption, styles.friendStoryName, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
+                    {friend.username}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.friendStatusText,
+                      { color: isOnline ? colors.online : colors.textMuted },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {isOnline ? 'Online' : 'Offline'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
         ) : (
-          <View style={[styles.emptyFriendsBanner, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-            <Text style={[Typography.subtext, { color: colors.textSecondary }]}>
-              Chưa có bạn bè nào. Hãy bấm "Tìm bạn mới" để kết nối!
+          <Pressable
+            onPress={onOpenSearch}
+            style={[styles.emptyFriendsBanner, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+          >
+            <Ionicons name="people-outline" size={20} color={colors.primary} />
+            <Text style={[Typography.caption, { color: colors.textSecondary, marginLeft: 8 }]}>
+              Chưa có bạn bè. Bấm để tìm kiếm và kết bạn ngay!
             </Text>
-          </View>
+          </Pressable>
         )}
 
-        {/* Recent Conversations Section */}
-        <View style={[styles.sectionHeader, { marginTop: Spacing.xl }]}>
+        {/* Recent Conversations Section (Flat List without boxy card wrapper) */}
+        <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
           <Text style={[Typography.title, { color: colors.textPrimary }]}>
             Đoạn chat gần đây
           </Text>
@@ -329,8 +345,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {isLoading ? (
           <Loading message="Đang tải dữ liệu..." />
         ) : recentConversations.length > 0 ? (
-          <View style={[styles.recentCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }, Shadows.sm]}>
-            {recentConversations.map((conv) => (
+          <View style={styles.recentListContainer}>
+            {recentConversations.map((conv, index) => (
               <ConversationItem
                 key={conv.id}
                 id={conv.id}
@@ -342,18 +358,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 unreadCount={conv.unread_count}
                 currentUserId={user?.id}
                 onPress={() => onSelectConversation && onSelectConversation(conv)}
+                style={{
+                  borderBottomWidth: index === recentConversations.length - 1 ? 0 : StyleSheet.hairlineWidth,
+                }}
               />
             ))}
           </View>
         ) : (
-          <View style={[styles.emptyRecentBox, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+          <View style={[styles.emptyRecentBox, { borderColor: colors.borderLight }]}>
             <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
-            <Text style={[Typography.bodyMedium, { color: colors.textPrimary, marginTop: Spacing.sm }]}>
+            <Text style={[Typography.bodyMedium, { color: colors.textPrimary, marginTop: Spacing.sm, fontWeight: '600' }]}>
               Chưa có cuộc trò chuyện nào
             </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
-              Tìm kiếm bạn bè để bắt đầu trò chuyện ngay nhé!
+            <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.md }]}>
+              Bạn có thể tìm kiếm bạn bè để bắt đầu trò chuyện.
             </Text>
+            <Pressable
+              onPress={onOpenSearch}
+              style={[styles.emptyActionBtn, { backgroundColor: colors.primary }]}
+            >
+              <Ionicons name="search" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={[Typography.caption, { color: '#FFFFFF', fontWeight: '700' }]}>
+                Tìm bạn bè
+              </Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -370,7 +398,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   userProfileButton: {
@@ -383,7 +411,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greetingName: {
-    marginTop: 1,
+    marginTop: 0,
+    fontSize: 18,
+    lineHeight: 22,
   },
   headerRightActions: {
     flexDirection: 'row',
@@ -391,8 +421,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -401,20 +431,20 @@ const styles = StyleSheet.create({
   },
   headerBadgeWrapper: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -3,
+    right: -3,
   },
   scrollContent: {
     paddingBottom: Spacing.xxl,
   },
   searchWrapper: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   quickShortcutsRow: {
     paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
+    marginTop: 8,
     gap: Spacing.sm,
   },
   shortcutCard: {
@@ -426,8 +456,8 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   shortcutIconWrap: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -440,42 +470,58 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
+    marginTop: 18,
+    marginBottom: 8,
   },
   friendsHorizontalList: {
     paddingHorizontal: Spacing.lg,
-    gap: Spacing.lg,
-    paddingVertical: Spacing.xs,
+    gap: Spacing.md,
+    paddingVertical: 4,
   },
   friendStoryItem: {
     alignItems: 'center',
-    width: 64,
+    width: 62,
   },
   friendStoryName: {
-    marginTop: 6,
+    marginTop: 5,
     textAlign: 'center',
     fontSize: 12,
+    fontWeight: '500',
+  },
+  friendStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
   },
   emptyFriendsBanner: {
     marginHorizontal: Spacing.lg,
-    padding: Spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  recentCard: {
-    marginHorizontal: Spacing.lg,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    overflow: 'hidden',
+  recentListContainer: {
+    marginHorizontal: 0,
+    marginTop: 2,
   },
   emptyRecentBox: {
     marginHorizontal: Spacing.lg,
     padding: Spacing.xl,
     borderRadius: Radius.md,
     borderWidth: 1,
+    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 8,
+  },
+  emptyActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.full,
   },
 });

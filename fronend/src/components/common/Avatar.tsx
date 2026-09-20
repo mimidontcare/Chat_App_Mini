@@ -50,7 +50,13 @@ export const Avatar: React.FC<AvatarProps> = ({
       {showImage ? (
         <Image
           source={{ uri }}
-          style={{ width: dimension, height: dimension, borderRadius: dimension / 2 }}
+          style={{
+            width: dimension,
+            height: dimension,
+            borderRadius: dimension / 2,
+            borderWidth: 1.5,
+            borderColor: colors.surface,
+          }}
           contentFit="cover"
           transition={200}
           onError={() => setHasError(true)}
@@ -64,7 +70,7 @@ export const Avatar: React.FC<AvatarProps> = ({
               height: dimension,
               borderRadius: dimension / 2,
               backgroundColor: colors.primaryLight,
-              borderColor: colors.border,
+              borderColor: colors.borderLight,
             },
           ]}
         >
@@ -74,7 +80,7 @@ export const Avatar: React.FC<AvatarProps> = ({
               {
                 fontSize: Math.round(dimension * 0.38),
                 color: colors.primary,
-                fontWeight: '600',
+                fontWeight: '700',
               },
             ]}
           >
@@ -83,7 +89,7 @@ export const Avatar: React.FC<AvatarProps> = ({
         </View>
       )}
 
-      {showStatus && (
+      {showStatus && isOnline && (
         <View
           style={[
             styles.statusBadge,
@@ -91,7 +97,7 @@ export const Avatar: React.FC<AvatarProps> = ({
               width: badgeSize,
               height: badgeSize,
               borderRadius: badgeSize / 2,
-              backgroundColor: isOnline ? colors.online : colors.offline,
+              backgroundColor: colors.online,
               borderColor: colors.surface,
               borderWidth: Math.max(1.5, badgeSize * 0.2),
             },

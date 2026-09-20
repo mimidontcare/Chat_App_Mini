@@ -253,10 +253,18 @@ export const AppNavigator: React.FC = () => {
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'home' }}
         >
-          <View style={styles.tabIconWrapper}>
+          <View
+            style={[
+              styles.tabIconWrapper,
+              activeTab === 'home' && [
+                styles.tabIconActivePill,
+                { backgroundColor: colors.primaryLight },
+              ],
+            ]}
+          >
             <Ionicons
               name={activeTab === 'home' ? 'home' : 'home-outline'}
-              size={23}
+              size={22}
               color={activeTab === 'home' ? colors.primary : colors.textSecondary}
             />
           </View>
@@ -266,7 +274,7 @@ export const AppNavigator: React.FC = () => {
               styles.tabLabel,
               {
                 color: activeTab === 'home' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'home' ? '600' : '400',
+                fontWeight: activeTab === 'home' ? '700' : '500',
               },
             ]}
           >
@@ -282,10 +290,18 @@ export const AppNavigator: React.FC = () => {
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'messages' }}
         >
-          <View style={styles.tabIconWrapper}>
+          <View
+            style={[
+              styles.tabIconWrapper,
+              activeTab === 'messages' && [
+                styles.tabIconActivePill,
+                { backgroundColor: colors.primaryLight },
+              ],
+            ]}
+          >
             <Ionicons
               name={activeTab === 'messages' ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
-              size={23}
+              size={22}
               color={activeTab === 'messages' ? colors.primary : colors.textSecondary}
             />
             {unreadMessagesCount > 0 && (
@@ -302,7 +318,7 @@ export const AppNavigator: React.FC = () => {
               styles.tabLabel,
               {
                 color: activeTab === 'messages' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'messages' ? '600' : '400',
+                fontWeight: activeTab === 'messages' ? '700' : '500',
               },
             ]}
           >
@@ -318,10 +334,18 @@ export const AppNavigator: React.FC = () => {
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'friends' }}
         >
-          <View style={styles.tabIconWrapper}>
+          <View
+            style={[
+              styles.tabIconWrapper,
+              activeTab === 'friends' && [
+                styles.tabIconActivePill,
+                { backgroundColor: colors.primaryLight },
+              ],
+            ]}
+          >
             <Ionicons
               name={activeTab === 'friends' ? 'people' : 'people-outline'}
-              size={23}
+              size={22}
               color={activeTab === 'friends' ? colors.primary : colors.textSecondary}
             />
             {friendRequestsCount > 0 && (
@@ -336,7 +360,7 @@ export const AppNavigator: React.FC = () => {
               styles.tabLabel,
               {
                 color: activeTab === 'friends' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'friends' ? '600' : '400',
+                fontWeight: activeTab === 'friends' ? '700' : '500',
               },
             ]}
           >
@@ -352,10 +376,18 @@ export const AppNavigator: React.FC = () => {
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'profile' }}
         >
-          <View style={styles.tabIconWrapper}>
+          <View
+            style={[
+              styles.tabIconWrapper,
+              activeTab === 'profile' && [
+                styles.tabIconActivePill,
+                { backgroundColor: colors.primaryLight },
+              ],
+            ]}
+          >
             <Ionicons
               name={activeTab === 'profile' ? 'person' : 'person-outline'}
-              size={23}
+              size={22}
               color={activeTab === 'profile' ? colors.primary : colors.textSecondary}
             />
           </View>
@@ -365,7 +397,7 @@ export const AppNavigator: React.FC = () => {
               styles.tabLabel,
               {
                 color: activeTab === 'profile' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'profile' ? '600' : '400',
+                fontWeight: activeTab === 'profile' ? '700' : '500',
               },
             ]}
           >
@@ -388,24 +420,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    borderTopWidth: 1,
-    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 6,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 64,
+    flex: 1,
   },
   tabIconWrapper: {
     position: 'relative',
-    marginBottom: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    marginBottom: 2,
+  },
+  tabIconActivePill: {
+    borderRadius: Radius.pill,
   },
   tabBadge: {
     position: 'absolute',
-    top: -4,
-    right: -10,
-    minWidth: 18,
-    height: 18,
+    top: 0,
+    right: 6,
+    minWidth: 16,
+    height: 16,
     borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -413,10 +453,11 @@ const styles = StyleSheet.create({
   },
   tabBadgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
   },
   tabLabel: {
     fontSize: 11,
+    marginTop: 1,
   },
 });

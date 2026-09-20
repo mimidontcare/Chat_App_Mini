@@ -79,7 +79,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       style={({ pressed }) => [
         styles.container,
         {
-          backgroundColor: pressed ? colors.surfaceSecondary : colors.surface,
+          backgroundColor: pressed
+            ? colors.surfaceSecondary
+            : 'transparent',
           borderBottomColor: colors.borderLight,
         },
         style,
