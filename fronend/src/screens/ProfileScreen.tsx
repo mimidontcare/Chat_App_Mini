@@ -27,7 +27,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onLogoutPress,
 }) => {
   const { user, logout } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const handleEdit = onEditProfile || onNavigateToEditProfile;
 
   const handleLogout = () => {
@@ -196,6 +196,85 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             Cài đặt & Tiện ích
           </Text>
 
+          {/* Theme Selector (Mục 6: ☀️ Light / 🌙 Dark) */}
+          <View style={styles.themeRow}>
+            <View style={styles.menuLeft}>
+              <Ionicons
+                name={isDark ? 'moon' : 'sunny'}
+                size={20}
+                color={isDark ? colors.warning : colors.primary}
+              />
+              <View style={{ marginLeft: Spacing.md }}>
+                <Text style={[Typography.body, { color: colors.textPrimary }]}>
+                  Giao diện
+                </Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  {isDark ? 'Chế độ tối (Dark)' : 'Chế độ sáng (Light)'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.themePillsContainer, { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderLight }]}>
+              <Pressable
+                onPress={() => setThemeMode('light')}
+                style={[
+                  styles.themePillBtn,
+                  !isDark && [styles.activeThemePill, { backgroundColor: colors.surface }, Shadows.sm],
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Chuyển sang chế độ sáng"
+              >
+                <Ionicons
+                  name="sunny"
+                  size={15}
+                  color={!isDark ? colors.warning : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    Typography.caption,
+                    {
+                      color: !isDark ? colors.textPrimary : colors.textMuted,
+                      fontWeight: !isDark ? '700' : '500',
+                      marginLeft: 4,
+                    },
+                  ]}
+                >
+                  Sáng
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setThemeMode('dark')}
+                style={[
+                  styles.themePillBtn,
+                  isDark && [styles.activeThemePill, { backgroundColor: colors.surfaceHover }, Shadows.sm],
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Chuyển sang chế độ tối"
+              >
+                <Ionicons
+                  name="moon"
+                  size={14}
+                  color={isDark ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    Typography.caption,
+                    {
+                      color: isDark ? colors.textPrimary : colors.textMuted,
+                      fontWeight: isDark ? '700' : '500',
+                      marginLeft: 4,
+                    },
+                  ]}
+                >
+                  Tối
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.borderLight }]} />
+
           <Pressable
             onPress={() => Alert.alert('Thông báo', 'Cài đặt thông báo đang được nâng cấp.')}
             style={({ pressed }) => [styles.menuItem, pressed && { backgroundColor: colors.surfaceSecondary }]}
@@ -334,5 +413,27 @@ const styles = StyleSheet.create({
   },
   logoutBtn: {
     marginTop: Spacing.sm,
+  },
+  themeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.xs,
+  },
+  themePillsContainer: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: Radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  themePillBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md - 2,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+  },
+  activeThemePill: {
+    //
   },
 });

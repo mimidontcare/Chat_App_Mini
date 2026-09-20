@@ -45,7 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onStartChatWithPeer,
 }) => {
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark, toggleTheme } = useTheme();
   const { isUserOnline } = useOnlineStatus();
 
   const [recentConversations, setRecentConversations] = useState<any[]>([]);
@@ -140,6 +140,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </Pressable>
 
         <View style={styles.headerRightActions}>
+          <Pressable
+            onPress={toggleTheme}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
+          >
+            <Ionicons
+              name={isDark ? "sunny-outline" : "moon-outline"}
+              size={20}
+              color={isDark ? colors.warning : colors.textPrimary}
+            />
+          </Pressable>
+
           <Pressable
             onPress={onOpenNotifications}
             style={({ pressed }) => [

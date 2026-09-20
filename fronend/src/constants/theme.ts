@@ -24,9 +24,11 @@ export const Colors = {
 
     border: '#E2E8F0',
     borderLight: '#F1F5F9',
+    divider: '#E2E8F0',
 
     online: '#10B981',
     offline: '#94A3B8',
+    success: '#10B981',
 
     destructive: '#EF4444',
     destructiveLight: '#FEE2E2',
@@ -70,9 +72,11 @@ export const Colors = {
 
     border: '#263345',
     borderLight: '#1E293B',
+    divider: '#263345',
 
     online: '#10B981',
     offline: '#64748B',
+    success: '#10B981',
 
     destructive: '#F87171',
     destructiveLight: '#451A1A',
@@ -96,7 +100,7 @@ export const Colors = {
   },
 } as const;
 
-export type ThemeColors = typeof Colors.light;
+export type ThemeColors = { [K in keyof typeof Colors.light]: string };
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({

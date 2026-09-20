@@ -1,14 +1,11 @@
-import { useColorScheme } from 'react-native';
-import { Colors } from '../constants/theme';
+import { useThemeContext } from '../context/ThemeContext';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
-  const colors = isDark ? Colors.dark : Colors.light;
-
+  const context = useThemeContext();
   return {
-    isDark,
-    colors, 
-    scheme: scheme || 'light',
+    ...context,
+    scheme: context.currentTheme,
   };
 }
+
+export type { ThemeMode, ActiveTheme } from '../context/ThemeContext';
