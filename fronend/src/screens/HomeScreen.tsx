@@ -3,51 +3,35 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
+  ScrollView,
   RefreshControl,
-  Platform,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { Avatar, EmptyState } from '../components/common';
+import {
+  Avatar,
+  SearchBar,
+  ConversationItem,
+  Loading,
+  Badge,
+} from '../components/common';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
-import { formatConversationTime } from '../utils/date';
 
-export interface ConversationItem {
-  id: number;
-  status: string;
-  unread_count: number;
-  updated_at: string;
-  peer: {
-    id: number;
-    username: string;
-    email: string | null;
-    avatar_url: string | null;
-  };
-  last_message: {
-    id: number;
-    content: string;
-    message_type: 'text' | 'image';
-    sender_id: number;
-    is_read: boolean;
-    created_at: string;
-  } | null;
-}
-
-interface HomeScreenProps {
+export interface HomeScreenProps {
   onSelectConversation?: (conv: any) => void;
   onOpenSearch?: () => void;
   onOpenProfile?: () => void;
   onOpenMessageRequests?: () => void;
   onOpenFriendRequests?: () => void;
   onOpenNotifications?: () => void;
+  onNavigateToMessages?: () => void;
+  onStartChatWithPeer?: (peer: any) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -55,351 +39,304 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onOpenSearch,
   onOpenProfile,
   onOpenMessageRequests,
+  onOpenFriendRequests,
   onOpenNotifications,
+  onNavigateToMessages,
+  onStartChatWithPeer,
 }) => {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const { isUserOnline } = useOnlineStatus();
+
+  const [recentConversations, setRecentConversations] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [friendRequestsCount, setFriendRequestsCount] = useState(0);
+  const [messageRequestsCount, setMessageRequestsCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterMode, setFilterMode] = useState<'all' | 'unread'>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Lấy danh sách đoạn chat từ Backend
-  const fetchConversations = useCallback(async () => {
+  // Tải dữ liệu dashboard tổng hợp
+  const loadDashboardData = useCallback(async () => {
     try {
-      const res = await api.get('/conversations');
-      if (res.data?.success) {
-        setConversations(res.data.conversations || []);
-      }
+      const [convRes, friendsRes, friendReqRes, msgReqRes, notifRes] = await Promise.all([
+        api.get('/conversations').catch(() => ({ data: { conversations: [] } })),
+        api.get('/friends').catch(() => ({ data: { friends: [] } })),
+        api.get('/friends/requests').catch(() => ({ data: { requests: [] } })),
+        api.get('/conversations/requests').catch(() => ({ data: { requests: [] } })),
+        api.get('/notifications/unread-count').catch(() => ({ data: { unread_count: 0 } })),
+      ]);
+
+      setRecentConversations((convRes.data?.conversations || []).slice(0, 4));
+      setFriends(friendsRes.data?.friends || []);
+      setFriendRequestsCount(friendReqRes.data?.requests?.length || 0);
+      setMessageRequestsCount(msgReqRes.data?.requests?.length || 0);
+      setUnreadNotifCount(notifRes.data?.unread_count || 0);
     } catch (err) {
-      console.error('Lỗi lấy danh sách cuộc trò chuyện:', err);
+      console.error('Lỗi nạp dashboard home:', err);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  // Lấy số lượng thông báo chưa đọc
-  const fetchUnreadNotifCount = useCallback(async () => {
-    try {
-      const res = await api.get('/notifications/unread-count');
-      if (res.data?.success) {
-        setUnreadNotifCount(res.data.unread_count || 0);
-      }
-    } catch {
-      // bỏ qua lỗi
-    }
-  }, []);
-
   useEffect(() => {
-    fetchConversations();
-    fetchUnreadNotifCount();
-  }, [fetchConversations, fetchUnreadNotifCount]);
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-  // Lắng nghe tin nhắn & thông báo realtime trên Socket
+  // Realtime updates
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
 
-    const handleRealtimeMessage = (data: any) => {
-      if (!data) return;
-
-      // Chuẩn hóa message: hỗ trợ cả message trực tiếp và wrapper { conversation_id, last_message }
-      const actualMessage = data.last_message ? data.last_message : data;
-      const convId = Number(data.conversation_id || actualMessage.conversation_id);
-
-      if (!convId || !actualMessage) return;
-
-      setConversations((prev) => {
-        const convIndex = prev.findIndex((c) => Number(c.id) === convId);
-
-        if (convIndex !== -1) {
-          const targetConv = prev[convIndex];
-          const isFromPeer = Number(actualMessage.sender_id) !== Number(user?.id);
-
-          const updatedConv: ConversationItem = {
-            ...targetConv,
-            last_message: {
-              id: actualMessage.id || Date.now(),
-              content: actualMessage.content || '',
-              message_type: actualMessage.message_type || 'text',
-              sender_id: Number(actualMessage.sender_id),
-              is_read: Boolean(actualMessage.is_read),
-              created_at: actualMessage.created_at || new Date().toISOString(),
-            },
-            unread_count: isFromPeer ? (targetConv.unread_count || 0) + 1 : targetConv.unread_count,
-            updated_at: actualMessage.created_at || new Date().toISOString(),
-          };
-
-          const remaining = prev.filter((_, idx) => idx !== convIndex);
-          return [updatedConv, ...remaining];
-        } else {
-          fetchConversations();
-          return prev;
-        }
-      });
+    const handleUpdate = () => {
+      loadDashboardData();
     };
 
-    const handleNewNotification = () => {
-      setUnreadNotifCount((prev) => prev + 1);
-    };
-
-    socket.on('receive_message', handleRealtimeMessage);
-    socket.on('conversation_updated', handleRealtimeMessage);
-    socket.on('new_notification', handleNewNotification);
+    socket.on('receive_message', handleUpdate);
+    socket.on('conversation_updated', handleUpdate);
+    socket.on('new_notification', handleUpdate);
 
     return () => {
-      socket.off('receive_message', handleRealtimeMessage);
-      socket.off('conversation_updated', handleRealtimeMessage);
-      socket.off('new_notification', handleNewNotification);
+      socket.off('receive_message', handleUpdate);
+      socket.off('conversation_updated', handleUpdate);
+      socket.off('new_notification', handleUpdate);
     };
-  }, [fetchConversations, user?.id]);
+  }, [loadDashboardData]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchConversations(), fetchUnreadNotifCount()]);
+    await loadDashboardData();
     setIsRefreshing(false);
   };
 
-  // Lọc theo search và badge unread
-  const filteredConversations = conversations.filter((c) => {
-    const matchesSearch =
-      c.peer.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.last_message?.content || '').toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (filterMode === 'unread') {
-      return matchesSearch && c.unread_count > 0;
-    }
-    return matchesSearch;
-  });
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Top App Bar */}
-      <View style={[styles.topBar, { borderBottomColor: colors.borderLight }]}>
-        <TouchableOpacity style={styles.avatarButton} onPress={onOpenProfile} activeOpacity={0.8}>
+      {/* Friendly Top Header */}
+      <View style={[styles.topHeader, { borderBottomColor: colors.borderLight }]}>
+        <Pressable
+          onPress={onOpenProfile}
+          style={styles.userProfileButton}
+          accessibilityRole="button"
+          accessibilityLabel="Trang cá nhân"
+        >
           <Avatar
             uri={user?.avatar_url}
             name={user?.username}
-            size="sm"
+            size="md"
             showStatus
             isOnline={true}
           />
-        </TouchableOpacity>
+          <View style={styles.greetingContainer}>
+            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+              Xin chào 👋
+            </Text>
+            <Text
+              style={[Typography.title, styles.greetingName, { color: colors.textPrimary }]}
+              numberOfLines={1}
+            >
+              {user?.username || 'Bạn'}
+            </Text>
+          </View>
+        </Pressable>
 
-        <View style={styles.topBarCenter}>
-          <Text style={[Typography.headline, styles.appTitle, { color: colors.textPrimary }]}>
-            Đoạn chat
-          </Text>
-          <Text style={[Typography.caption, { color: colors.online }]}>
-            Đang hoạt động
-          </Text>
-        </View>
-
-        <View style={styles.topBarRightActions}>
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
+        <View style={styles.headerRightActions}>
+          <Pressable
             onPress={onOpenNotifications}
-            activeOpacity={0.7}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              {
+                backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary,
+                borderColor: colors.border,
+              },
+            ]}
+            hitSlop={8}
+            accessibilityRole="button"
             accessibilityLabel="Thông báo"
           >
             <Ionicons name="notifications-outline" size={20} color={colors.textPrimary} />
             {unreadNotifCount > 0 && (
-              <View style={[styles.bellBadge, { backgroundColor: colors.unreadBadge }]}>
-                <Text style={styles.bellBadgeText}>
-                  {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
-                </Text>
+              <View style={styles.headerBadgeWrapper}>
+                <Badge count={unreadNotifCount} size="sm" variant="destructive" />
               </View>
             )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.iconButton, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border, marginLeft: 8 }]}
-            onPress={onOpenSearch}
-            activeOpacity={0.7}
-            accessibilityLabel="Tìm kiếm"
-          >
-            <Ionicons name="search-outline" size={20} color={colors.textPrimary} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
 
-      {/* Search Input Bar */}
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-          <Ionicons name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            style={[Typography.body, styles.searchInput, { color: colors.textPrimary }]}
-            placeholder="Tìm kiếm bạn bè hoặc tin nhắn..."
-            placeholderTextColor={colors.textPlaceholder}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={6}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
-          )}
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Prominent Search Bar */}
+        <View style={styles.searchWrapper}>
+          <SearchBar
+            value=""
+            placeholder="Tìm kiếm bạn bè hoặc người dùng..."
+            onPress={onOpenSearch}
+            editable={false}
+          />
         </View>
-      </View>
 
-      {/* Quick Action Badges */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={[
-            styles.actionChip,
-            { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
-            filterMode === 'all' && { backgroundColor: colors.primary, borderColor: colors.primary },
-          ]}
-          onPress={() => setFilterMode('all')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              Typography.caption,
-              styles.actionChipText,
-              { color: filterMode === 'all' ? colors.onPrimary : colors.textSecondary },
-              filterMode === 'all' && styles.actionChipTextActive,
-            ]}
-          >
-            Tất cả
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.actionChip,
-            { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
-            filterMode === 'unread' && { backgroundColor: colors.primary, borderColor: colors.primary },
-          ]}
-          onPress={() => setFilterMode('unread')}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              Typography.caption,
-              styles.actionChipText,
-              { color: filterMode === 'unread' ? colors.onPrimary : colors.textSecondary },
-              filterMode === 'unread' && styles.actionChipTextActive,
-            ]}
-          >
-            Chưa đọc
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionChip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
-          onPress={onOpenMessageRequests}
-          activeOpacity={0.7}
-        >
-          <Text style={[Typography.caption, styles.actionChipText, { color: colors.textSecondary }]}>
-            Tin nhắn chờ
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Conversations List / Loading / Empty State */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : filteredConversations.length > 0 ? (
-        <FlatList
-          data={filteredConversations}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
-          }
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS === 'android'}
-          renderItem={({ item }) => {
-            const isMeLastSender = item.last_message?.sender_id === user?.id;
-            const messagePreview = item.last_message
-              ? item.last_message.message_type === 'image'
-                ? '[Hình ảnh]'
-                : (isMeLastSender ? 'Bạn: ' : '') + item.last_message.content
-              : 'Bắt đầu cuộc trò chuyện...';
-
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.conversationCard,
-                  { backgroundColor: colors.surface, borderColor: colors.borderLight },
+        {/* Quick Action Cards (Friend Requests & Message Requests) */}
+        {(friendRequestsCount > 0 || messageRequestsCount > 0) && (
+          <View style={styles.quickShortcutsRow}>
+            {friendRequestsCount > 0 && (
+              <Pressable
+                onPress={onOpenFriendRequests}
+                style={({ pressed }) => [
+                  styles.shortcutCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.primary,
+                    opacity: pressed ? 0.8 : 1,
+                  },
                   Shadows.sm,
                 ]}
-                onPress={() => onSelectConversation && onSelectConversation(item)}
-                activeOpacity={0.7}
               >
-                {/* Avatar */}
-                <Avatar
-                  uri={item.peer.avatar_url}
-                  name={item.peer.username}
-                  size="md"
-                />
-
-                {/* Content */}
-                <View style={styles.convContent}>
-                  <View style={styles.convTopRow}>
-                    <Text
-                      style={[
-                        Typography.title,
-                        styles.peerName,
-                        { color: colors.textPrimary },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.peer.username}
-                    </Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      {formatConversationTime(item.last_message?.created_at || item.updated_at)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.convBottomRow}>
-                    <Text
-                      style={[
-                        Typography.bodyMedium,
-                        styles.lastMessageText,
-                        { color: item.unread_count > 0 ? colors.textPrimary : colors.textSecondary },
-                        item.unread_count > 0 && styles.lastMessageUnread,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {messagePreview}
-                    </Text>
-
-                    {item.unread_count > 0 && (
-                      <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.unreadBadgeText}>
-                          {item.unread_count > 99 ? '99+' : item.unread_count}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                <View style={[styles.shortcutIconWrap, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name="person-add" size={20} color={colors.primary} />
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-          contentContainerStyle={styles.listContainer}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            icon="chatbubbles-outline"
-            title={searchQuery ? 'Không tìm thấy cuộc trò chuyện nào' : 'Chưa có cuộc trò chuyện nào'}
-            description={
-              searchQuery
-                ? `Không có tin nhắn nào khớp với "${searchQuery}"`
-                : 'Hãy tìm kiếm bạn bè hoặc gửi lời mời để bắt đầu trò chuyện thời gian thực 1-1!'
-            }
-            actionTitle="+ Bắt đầu trò chuyện mới"
-            onAction={onOpenSearch}
-          />
+                <View style={styles.shortcutInfo}>
+                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '600' }]}>
+                    {friendRequestsCount} lời mời kết bạn
+                  </Text>
+                  <Text style={[Typography.caption, { color: colors.primary }]}>
+                    Xem ngay →
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+
+            {messageRequestsCount > 0 && (
+              <Pressable
+                onPress={onOpenMessageRequests}
+                style={({ pressed }) => [
+                  styles.shortcutCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.secondary,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                  Shadows.sm,
+                ]}
+              >
+                <View style={[styles.shortcutIconWrap, { backgroundColor: 'rgba(99, 102, 241, 0.12)' }]}>
+                  <Ionicons name="mail-unread" size={20} color={colors.secondary} />
+                </View>
+                <View style={styles.shortcutInfo}>
+                  <Text style={[Typography.bodyMedium, { color: colors.textPrimary, fontWeight: '600' }]}>
+                    {messageRequestsCount} tin nhắn chờ
+                  </Text>
+                  <Text style={[Typography.caption, { color: colors.secondary }]}>
+                    Kiểm tra →
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {/* Active Friends Horizontal Carousel */}
+        <View style={styles.sectionHeader}>
+          <Text style={[Typography.title, { color: colors.textPrimary }]}>
+            Bạn bè ({friends.length})
+          </Text>
+          <Pressable onPress={onOpenSearch} hitSlop={6}>
+            <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+              + Tìm bạn mới
+            </Text>
+          </Pressable>
         </View>
-      )}
+
+        {friends.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.friendsHorizontalList}
+          >
+            {friends.map((friend) => (
+              <Pressable
+                key={friend.id}
+                onPress={() => onStartChatWithPeer ? onStartChatWithPeer(friend) : onOpenSearch?.()}
+                style={styles.friendStoryItem}
+              >
+                <Avatar
+                  uri={friend.avatar_url}
+                  name={friend.username}
+                  size="lg"
+                  showStatus
+                  isOnline={isUserOnline(friend.id)}
+                />
+                <Text
+                  style={[Typography.caption, styles.friendStoryName, { color: colors.textPrimary }]}
+                  numberOfLines={1}
+                >
+                  {friend.username}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={[styles.emptyFriendsBanner, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+            <Text style={[Typography.subtext, { color: colors.textSecondary }]}>
+              Chưa có bạn bè nào. Hãy bấm "Tìm bạn mới" để kết nối!
+            </Text>
+          </View>
+        )}
+
+        {/* Recent Conversations Section */}
+        <View style={[styles.sectionHeader, { marginTop: Spacing.xl }]}>
+          <Text style={[Typography.title, { color: colors.textPrimary }]}>
+            Đoạn chat gần đây
+          </Text>
+          {onNavigateToMessages && (
+            <Pressable onPress={onNavigateToMessages} hitSlop={6}>
+              <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
+                Xem tất cả →
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {isLoading ? (
+          <Loading message="Đang tải dữ liệu..." />
+        ) : recentConversations.length > 0 ? (
+          <View style={[styles.recentCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }, Shadows.sm]}>
+            {recentConversations.map((conv) => (
+              <ConversationItem
+                key={conv.id}
+                id={conv.id}
+                peer={{
+                  ...conv.peer,
+                  is_online: isUserOnline(conv.peer.id),
+                }}
+                lastMessage={conv.last_message}
+                unreadCount={conv.unread_count}
+                currentUserId={user?.id}
+                onPress={() => onSelectConversation && onSelectConversation(conv)}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.emptyRecentBox, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+            <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
+            <Text style={[Typography.bodyMedium, { color: colors.textPrimary, marginTop: Spacing.sm }]}>
+              Chưa có cuộc trò chuyện nào
+            </Text>
+            <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
+              Tìm kiếm bạn bè để bắt đầu trò chuyện ngay nhé!
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -408,164 +345,117 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  topBar: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  avatarButton: {
-    marginRight: Spacing.sm,
-  },
-  topBarCenter: {
-    flex: 1,
-  },
-  appTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  topBarRightActions: {
+  userProfileButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
   },
-  iconButton: {
+  greetingContainer: {
+    flex: 1,
+  },
+  greetingName: {
+    marginTop: 1,
+  },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  headerBadgeWrapper: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xxl,
+  },
+  searchWrapper: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  quickShortcutsRow: {
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  shortcutCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    gap: Spacing.md,
+  },
+  shortcutIconWrap: {
     width: 38,
     height: 38,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    position: 'relative',
   },
-  bellBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  bellBadgeText: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-  searchContainer: {
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
-  searchIcon: {
-    marginRight: Spacing.xs,
-  },
-  searchInput: {
+  shortcutInfo: {
     flex: 1,
-    padding: 0,
-    margin: 0,
-    ...(Platform.OS === 'web'
-      ? ({
-          outlineStyle: 'none',
-          outlineWidth: 0,
-          outlineColor: 'transparent',
-          boxShadow: 'none',
-        } as any)
-      : {}),
   },
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.md,
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  actionChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-  },
-  actionChipText: {
-    fontWeight: '500',
-  },
-  actionChipTextActive: {
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContainer: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
-  },
-  conversationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.sm + 2,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius.lg,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-  },
-  convContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  convTopRow: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    paddingHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  peerName: {
-    fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: Spacing.xs,
+  friendsHorizontalList: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.lg,
+    paddingVertical: Spacing.xs,
   },
-  convBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  friendStoryItem: {
+    alignItems: 'center',
+    width: 64,
+  },
+  friendStoryName: {
+    marginTop: 6,
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  emptyFriendsBanner: {
+    marginHorizontal: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     alignItems: 'center',
   },
-  lastMessageText: {
-    fontSize: 13,
-    flex: 1,
-    marginRight: Spacing.xs,
+  recentCard: {
+    marginHorizontal: Spacing.lg,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  lastMessageUnread: {
-    fontWeight: '700',
-  },
-  unreadBadge: {
-    borderRadius: Radius.pill,
-    minWidth: 20,
-    height: 20,
+  emptyRecentBox: {
+    marginHorizontal: Spacing.lg,
+    padding: Spacing.xl,
+    borderRadius: Radius.md,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadBadgeText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
   },
 });

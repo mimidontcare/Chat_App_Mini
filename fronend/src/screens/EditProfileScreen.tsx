@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../hooks/useTheme';
+import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
+import { Avatar, Button, Input } from '../components/common';
 import api, { BASE_URL } from '../services/api';
 import { appendImageToFormData } from '../utils/fileUpload';
 
@@ -25,6 +25,7 @@ interface EditProfileScreenProps {
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) => {
   const { user, updateUser } = useAuth();
+  const { colors } = useTheme();
 
   const [username, setUsername] = useState(user?.username || '');
   const [email, setEmail] = useState(user?.email || '');
@@ -98,7 +99,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
         }
       }
 
-      // Chuẩn hóa avatar url (nếu là đường dẫn static từ server)
+      // Chuẩn hóa avatar url
       let resolvedAvatarUrl = finalAvatarUrl;
       if (resolvedAvatarUrl && resolvedAvatarUrl.startsWith('/uploads')) {
         const serverOrigin = BASE_URL.replace('/api', '');
@@ -115,7 +116,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
       if (updateRes.data?.success && updateRes.data?.user) {
         await updateUser(updateRes.data.user);
         if (Platform.OS === 'web') {
-          alert('Thông tin cá nhân đã được cập nhật!');
+          alert('Thông tin cá nhân đã được cập nhật thành công!');
           onBack();
         } else {
           Alert.alert('Thành công', 'Thông tin cá nhân đã được cập nhật!', [
@@ -124,128 +125,124 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Cập nhật thất bại. Vui lòng thử lại!');
+      setError(err.message || 'Không thể cập nhật hồ sơ. Vui lòng thử lại!');
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.container}
       >
-        {/* Top Navigation Bar */}
-        <View style={styles.navBar}>
-          <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
-            <Text style={styles.backText}>‹ Trở về</Text>
-          </TouchableOpacity>
-          <Text style={styles.navTitle}>Chỉnh Sửa Hồ Sơ</Text>
-          <TouchableOpacity
-            style={[styles.saveNavButton, isSaving && styles.disabledButton]}
-            onPress={handleSave}
-            disabled={isSaving}
-            activeOpacity={0.8}
+        {/* Navigation Bar */}
+        <View style={[styles.navBar, { borderBottomColor: colors.borderLight }]}>
+          <Pressable
+            style={styles.backBtn}
+            onPress={onBack}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Trở về"
           >
-            {isSaving ? (
-              <ActivityIndicator color="#3b82f6" size="small" />
-            ) : (
-              <Text style={styles.saveNavText}>Lưu</Text>
-            )}
-          </TouchableOpacity>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </Pressable>
+          <Text style={[Typography.headline, { color: colors.textPrimary }]}>
+            Chỉnh Sửa Hồ Sơ
+          </Text>
+          <Button
+            title="Lưu"
+            onPress={handleSave}
+            loading={isSaving}
+            variant="ghost"
+            size="sm"
+            textStyle={styles.saveBtnText}
+          />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {error && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorBanner, { backgroundColor: colors.destructiveLight, borderColor: colors.destructive }]}>
+              <Ionicons name="alert-circle" size={18} color={colors.destructive} />
+              <Text style={[Typography.caption, { color: colors.destructive, fontWeight: '600', flex: 1 }]}>
+                {error}
+              </Text>
             </View>
           )}
 
           {/* Avatar Pick Section */}
           <View style={styles.avatarSection}>
-            <TouchableOpacity onPress={handlePickImage} activeOpacity={0.8}>
-              <View style={styles.avatarWrapper}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImg} />
-                ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {username ? username.charAt(0).toUpperCase() : 'U'}
-                    </Text>
-                  </View>
-                )}
-                <View style={styles.cameraBadge}>
-                  <Ionicons name="camera" size={15} color="#ffffff" />
-                </View>
+            <Pressable onPress={handlePickImage} style={styles.avatarPickerWrap} accessibilityRole="button">
+              <Avatar
+                uri={avatarUri}
+                name={username}
+                size="xl"
+              />
+              <View style={[styles.cameraBadge, { backgroundColor: colors.primary }]}>
+                <Ionicons name="camera" size={16} color="#FFFFFF" />
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handlePickImage} style={styles.changePhotoBtn}>
-              <Text style={styles.changePhotoText}>Thay đổi ảnh đại diện</Text>
-            </TouchableOpacity>
+            </Pressable>
+            <Pressable onPress={handlePickImage} style={styles.changePhotoBtn}>
+              <Text style={[Typography.bodyMedium, { color: colors.primary }]}>
+                Thay đổi ảnh đại diện
+              </Text>
+            </Pressable>
           </View>
 
-          {/* Form Fields */}
-          <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tên đăng nhập *</Text>
-              <TextInput
-                style={styles.input}
-                value={username}
-                onChangeText={(val) => {
-                  setUsername(val);
-                  if (error) setError(null);
-                }}
-                placeholder="Nhập tên đăng nhập"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
-              />
-            </View>
+          {/* Form Fields Card */}
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: colors.surface, borderColor: colors.borderLight },
+              Shadows.sm,
+            ]}
+          >
+            <Input
+              label="Tên đăng nhập *"
+              value={username}
+              onChangeText={(val) => {
+                setUsername(val);
+                if (error) setError(null);
+              }}
+              placeholder="Nhập tên đăng nhập"
+              autoCapitalize="none"
+              leftIcon="person-outline"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Địa chỉ Email</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={(val) => {
-                  setEmail(val);
-                  if (error) setError(null);
-                }}
-                placeholder="Nhập email của bạn"
-                placeholderTextColor="#94a3b8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
+            <Input
+              label="Địa chỉ Email"
+              value={email}
+              onChangeText={(val) => {
+                setEmail(val);
+                if (error) setError(null);
+              }}
+              placeholder="Nhập email của bạn"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              leftIcon="mail-outline"
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Đường dẫn ảnh trực tiếp (tùy chọn)</Text>
-              <TextInput
-                style={styles.input}
-                value={avatarUri || ''}
-                onChangeText={(val) => {
-                  setAvatarUri(val);
-                  setIsNewImageSelected(false);
-                }}
-                placeholder="https://... ảnh online"
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
-              />
-            </View>
+            <Input
+              label="Đường dẫn ảnh online (tùy chọn)"
+              value={avatarUri || ''}
+              onChangeText={(val) => {
+                setAvatarUri(val);
+                setIsNewImageSelected(false);
+              }}
+              placeholder="https://... liên kết ảnh"
+              autoCapitalize="none"
+              leftIcon="image-outline"
+            />
 
-            <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.disabledButton]}
+            <Button
+              title="Lưu Thay Đổi"
               onPress={handleSave}
-              disabled={isSaving}
-              activeOpacity={0.8}
-            >
-              {isSaving ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.saveButtonText}>Lưu Thay Đổi</Text>
-              )}
-            </TouchableOpacity>
+              loading={isSaving}
+              variant="primary"
+              size="lg"
+              style={styles.saveSubmitBtn}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -256,7 +253,6 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ onBack }) 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
   container: {
     flex: 1,
@@ -265,141 +261,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backButton: {
-    padding: 6,
+  backBtn: {
+    padding: Spacing.xs,
   },
-  backText: {
-    color: '#60a5fa',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  navTitle: {
-    fontSize: 17,
+  saveBtnText: {
     fontWeight: '700',
-    color: '#f8fafc',
-  },
-  saveNavButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  saveNavText: {
-    color: '#3b82f6',
     fontSize: 16,
-    fontWeight: '700',
   },
   scrollContent: {
-    padding: 20,
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl,
   },
   errorBanner: {
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
-  avatarWrapper: {
+  avatarPickerWrap: {
     position: 'relative',
-  },
-  avatarImg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#3b82f6',
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#3b82f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#60a5fa',
-  },
-  avatarText: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: '#ffffff',
   },
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#1e293b',
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#3b82f6',
-  },
-  cameraIcon: {
-    fontSize: 14,
+    borderColor: '#FFFFFF',
   },
   changePhotoBtn: {
-    marginTop: 12,
-  },
-  changePhotoText: {
-    color: '#60a5fa',
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: Spacing.sm,
+    padding: Spacing.xs,
   },
   card: {
-    backgroundColor: '#1e293b',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: Radius.xl,
     borderWidth: 1,
-    borderColor: '#334155',
+    padding: Spacing.xl,
   },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#cbd5e1',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    fontSize: 15,
-    color: '#f8fafc',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  saveButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+  saveSubmitBtn: {
+    marginTop: Spacing.md,
   },
 });

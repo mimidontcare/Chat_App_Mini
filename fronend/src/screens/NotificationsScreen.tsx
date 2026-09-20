@@ -5,23 +5,21 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { EmptyState } from '../components/common';
+import { Typography, Radius, Spacing } from '../constants/theme';
+import { EmptyState, Loading, NotificationItem, Badge } from '../components/common';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
 import { formatRelativeTime } from '../utils/date';
 
-export interface NotificationItem {
+export interface NotificationItemData {
   id: number;
   user_id: number;
-  type: 'friend_request' | 'friend_accepted' | 'message_request' | 'system';
+  type: 'friend_request' | 'friend_accepted' | 'message_request' | 'system' | string;
   content: string;
   is_read: boolean;
   created_at: string;
@@ -41,7 +39,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   onOpenFriends,
 }) => {
   const { colors } = useTheme();
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationItemData[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -111,7 +109,7 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   };
 
   // 4. Bấm vào một thông báo
-  const handlePressItem = async (item: NotificationItem) => {
+  const handlePressItem = async (item: NotificationItemData) => {
     if (!item.is_read) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n))
@@ -119,8 +117,8 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       setUnreadCount((prev) => Math.max(0, prev - 1));
       try {
         await api.put(`/notifications/${item.id}/read`);
-      } catch (err) {
-        // bỏ qua lỗi
+      } catch {
+        // bỏ qua
       }
     }
 
@@ -131,19 +129,6 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       onOpenMessageRequests();
     } else if (item.type === 'friend_accepted' && onOpenFriends) {
       onOpenFriends();
-    }
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'friend_request':
-        return { name: 'person-add', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' };
-      case 'friend_accepted':
-        return { name: 'checkmark-circle', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' };
-      case 'message_request':
-        return { name: 'chatbubble-ellipses', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' };
-      default:
-        return { name: 'notifications', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)' };
     }
   };
 
@@ -163,30 +148,26 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
             </Pressable>
           )}
-          <Text style={[Typography.headline, styles.headerTitle, { color: colors.textPrimary }]}>
-            Thông Báo
+          <Text style={[Typography.headline, { color: colors.textPrimary }]}>
+            Thông báo
           </Text>
           {unreadCount > 0 && (
-            <View style={[styles.badgePill, { backgroundColor: colors.primary }]}>
-              <Text style={styles.badgePillText}>{unreadCount}</Text>
-            </View>
+            <Badge count={unreadCount} size="sm" variant="primary" />
           )}
         </View>
 
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllAsRead} hitSlop={6} activeOpacity={0.7}>
+          <Pressable onPress={handleMarkAllAsRead} hitSlop={6}>
             <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
               Đã đọc tất cả
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
 
-      {/* Danh sách thông báo */}
+      {/* Main Stream */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Loading message="Đang tải thông báo..." />
       ) : (
         <FlatList
           data={notifications}
@@ -196,58 +177,25 @@ export const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
               tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
-          renderItem={({ item }) => {
-            const iconConfig = getNotificationIcon(item.type);
-
-            return (
-              <TouchableOpacity
-                style={[
-                  styles.notificationCard,
-                  {
-                    backgroundColor: item.is_read ? colors.surface : colors.surfaceSecondary,
-                    borderColor: item.is_read ? colors.borderLight : colors.primary,
-                  },
-                  Shadows.sm,
-                ]}
-                onPress={() => handlePressItem(item)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.iconCircle, { backgroundColor: iconConfig.bg }]}>
-                  <Ionicons name={iconConfig.name as any} size={22} color={iconConfig.color} />
-                </View>
-
-                <View style={styles.contentContainer}>
-                  <Text
-                    style={[
-                      Typography.body,
-                      styles.contentText,
-                      {
-                        color: colors.textPrimary,
-                        fontWeight: item.is_read ? '400' : '600',
-                      },
-                    ]}
-                  >
-                    {item.content}
-                  </Text>
-                  <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-                    {formatRelativeTime(item.created_at)}
-                  </Text>
-                </View>
-
-                {!item.is_read && (
-                  <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
-                )}
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={({ item }) => (
+            <NotificationItem
+              id={item.id}
+              type={item.type}
+              content={item.content}
+              isRead={item.is_read}
+              timeAgo={formatRelativeTime(item.created_at)}
+              onPress={() => handlePressItem(item)}
+            />
+          )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
               icon="notifications-off-outline"
-              title="Không có thông báo mới"
-              description="Khi có lời mời kết bạn hoặc tin nhắn chờ, thông báo sẽ hiển thị tại đây."
+              title="Không có thông báo nào"
+              description="Khi có lời mời kết bạn hoặc tin nhắn mới, bạn sẽ nhận được thông báo tại đây."
             />
           }
         />
@@ -266,67 +214,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
   },
   backBtn: {
     padding: Spacing.xs,
-    marginRight: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  badgePill: {
-    marginLeft: Spacing.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  badgePillText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
     flexGrow: 1,
-  },
-  notificationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.sm + 2,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.md,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  contentText: {
-    lineHeight: 20,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: Spacing.xs,
   },
 });

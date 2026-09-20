@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing } from '../constants/theme';
-import { Avatar, Button, Input, EmptyState } from '../components/common';
+import { Avatar, Button, SearchBar, EmptyState } from '../components/common';
 import api from '../services/api';
 
 export interface SearchUserItem {
@@ -68,15 +67,10 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
   // Xử lý gửi lời mời kết bạn
   const handleAddFriend = async (targetUser: SearchUserItem) => {
     try {
-      // Cập nhật UI tức thời (Optimistic Update)
       setUsers((prev) =>
         prev.map((u) => (u.id === targetUser.id ? { ...u, relationship: 'request_sent' } : u))
       );
-
-      // Gọi API kết bạn (chuẩn bị cho Phase 5)
-      await api.post('/friends/request', { receiver_id: targetUser.id }).catch(() => {
-        // Nếu API Phase 5 chưa xong, state vẫn giữ nguyên để trải nghiệm không bị gián đoạn
-      });
+      await api.post('/friends/request', { receiver_id: targetUser.id }).catch(() => {});
     } catch (err) {
       console.error('Lỗi gửi lời mời kết bạn:', err);
     }
@@ -88,14 +82,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
       setUsers((prev) =>
         prev.map((u) => (u.id === targetUser.id ? { ...u, relationship: 'friend' } : u))
       );
-
       await api.post(`/friends/request/${targetUser.id}/accept`).catch(() => {});
     } catch (err) {
       console.error('Lỗi chấp nhận lời mời kết bạn:', err);
     }
   };
 
-  // Hiển thị nút hành động tùy theo trạng thái quan hệ (Must-Have của Phase 4)
+  // Hiển thị nút hành động tùy theo trạng thái quan hệ
   const renderRelationshipAction = (user: SearchUserItem) => {
     switch (user.relationship) {
       case 'self':
@@ -120,18 +113,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         return (
           <View style={styles.actionRow}>
             <Button
-              title="Nhắn tin"
-              onPress={() => onStartChat(user)}
-              variant="primary"
-              size="sm"
-              leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
-            />
-            <Button
               title="Đã gửi lời mời"
               onPress={() => {}}
               variant="secondary"
               size="sm"
               disabled
+            />
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="primary"
+              size="sm"
             />
           </View>
         );
@@ -140,18 +132,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         return (
           <View style={styles.actionRow}>
             <Button
-              title="Nhắn tin"
-              onPress={() => onStartChat(user)}
-              variant="secondary"
-              size="sm"
-              leftIcon={<Ionicons name="chatbubble" size={14} color={colors.primary} />}
-            />
-            <Button
               title="Chấp nhận"
               onPress={() => handleAcceptFriend(user)}
               variant="primary"
               size="sm"
               leftIcon={<Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            />
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="secondary"
+              size="sm"
             />
           </View>
         );
@@ -161,18 +152,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
         return (
           <View style={styles.actionRow}>
             <Button
-              title="Nhắn tin"
-              onPress={() => onStartChat(user)}
-              variant="primary"
-              size="sm"
-              leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
-            />
-            <Button
-              title="Kết bạn"
+              title="Thêm bạn"
               onPress={() => handleAddFriend(user)}
               variant="outline"
               size="sm"
               leftIcon={<Ionicons name="person-add" size={14} color={colors.primary} />}
+            />
+            <Button
+              title="Nhắn tin"
+              onPress={() => onStartChat(user)}
+              variant="primary"
+              size="sm"
             />
           </View>
         );
@@ -181,7 +171,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Search Header Bar */}
+      {/* Header Bar */}
       <View style={[styles.headerBar, { borderBottomColor: colors.borderLight }]}>
         <Pressable
           onPress={onBack}
@@ -193,32 +183,18 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
 
-        <View style={styles.inputWrapper}>
-          <Input
-            placeholder="Tìm theo username hoặc email..."
+        <View style={styles.searchBarWrapper}>
+          <SearchBar
             value={query}
             onChangeText={setQuery}
-            leftIcon="search-outline"
-            rightIcon={query ? 'close-circle' : undefined}
-            onRightIconPress={() => setQuery('')}
-            containerStyle={styles.searchContainerStyle}
+            placeholder="Tìm kiếm bạn bè hoặc người dùng..."
+            loading={isLoading}
             autoFocus
-            returnKeyType="search"
           />
         </View>
       </View>
 
-      {/* Loading Indicator */}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[Typography.caption, { color: colors.textSecondary, marginLeft: 8 }]}>
-            Đang tìm kiếm...
-          </Text>
-        </View>
-      )}
-
-      {/* Results List */}
+      {/* Results Stream */}
       <FlatList
         data={users}
         keyExtractor={(item) => item.id.toString()}
@@ -246,7 +222,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
                 {item.username}
               </Text>
               <Text style={[Typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
-                {item.email || 'Chưa cập nhật email'}
+                {item.email || 'Người dùng MiniChat'}
               </Text>
             </View>
 
@@ -260,13 +236,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({ onBack, onStartChat 
               <EmptyState
                 icon="search-outline"
                 title="Không tìm thấy người dùng"
-                description={`Không có kết quả nào khớp với "${query}". Hãy thử tìm với từ khóa khác.`}
+                description={`Không có kết quả nào khớp với "${query}". Vui lòng thử từ khóa khác.`}
               />
             ) : (
               <EmptyState
                 icon="people-outline"
-                title="Tìm kiếm bạn bè"
-                description="Nhập tên đăng nhập hoặc địa chỉ email để tìm kiếm và kết bạn mới."
+                title="Tìm kiếm bạn bè hoặc người dùng"
+                description="Nhập tên đăng nhập để tìm kiếm bạn bè và bắt đầu trò chuyện."
               />
             )
           ) : null
@@ -284,25 +260,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xs,
-    borderBottomWidth: 1,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     padding: Spacing.xs,
-    marginRight: Spacing.xs,
-    marginBottom: Spacing.md,
+    marginRight: Spacing.sm,
   },
-  inputWrapper: {
+  searchBarWrapper: {
     flex: 1,
-  },
-  searchContainerStyle: {
-    marginBottom: Spacing.sm,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
   },
   listContent: {
     flexGrow: 1,
@@ -312,7 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   userInfo: {
     flex: 1,

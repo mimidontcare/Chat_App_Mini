@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Platform,
@@ -13,8 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { Avatar, Button, EmptyState } from '../components/common';
+import { Typography, Radius, Spacing } from '../constants/theme';
+import { EmptyState, Loading, MessageRequestItem } from '../components/common';
 import api from '../services/api';
 
 interface MessageRequestsScreenProps {
@@ -56,18 +55,20 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
   };
 
   // Chấp nhận tin nhắn chờ
-  const handleAccept = async (conv: any) => {
+  const handleAccept = async (id: number) => {
     try {
-      setRequests((prev) => prev.filter((r) => r.id !== conv.id));
-      await api.post(`/conversations/request/${conv.id}/accept`);
+      const targetConv = requests.find((r) => r.id === id);
+      setRequests((prev) => prev.filter((r) => r.id !== id));
+      await api.post(`/conversations/request/${id}/accept`);
+
       if (Platform.OS === 'web') {
         const openNow = window.confirm('Đã chuyển cuộc trò chuyện vào hộp thư chính! Bạn có muốn mở chat ngay không?');
-        if (openNow) onOpenChat(conv);
+        if (openNow && targetConv) onOpenChat(targetConv);
       } else {
         Alert.alert('Thành công', 'Đã chuyển cuộc trò chuyện vào hộp thư chính!', [
           {
             text: 'Mở chat ngay',
-            onPress: () => onOpenChat(conv),
+            onPress: () => targetConv && onOpenChat(targetConv),
           },
           { text: 'Đóng', style: 'cancel' },
         ]);
@@ -79,7 +80,7 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
   };
 
   // Ẩn / từ chối tin nhắn chờ
-  const handleDelete = (id: number) => {
+  const handleReject = (id: number) => {
     const doDelete = async () => {
       try {
         setRequests((prev) => prev.filter((r) => r.id !== id));
@@ -91,25 +92,31 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
     };
 
     if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tin nhắn chờ này? Lịch sử tin nhắn sẽ bị xóa vĩnh viễn.');
-      if (confirmed) {
-        doDelete();
-      }
+      const confirmed = window.confirm('Bạn có chắc chắn muốn xóa tin nhắn chờ này?');
+      if (confirmed) doDelete();
       return;
     }
 
     Alert.alert(
       'Xóa tin nhắn chờ',
-      'Bạn có chắc chắn muốn xóa tin nhắn chờ này? Lịch sử tin nhắn sẽ bị xóa vĩnh viễn.',
+      'Bạn có chắc chắn muốn xóa tin nhắn chờ này không?',
       [
         { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa',
-          style: 'destructive',
-          onPress: doDelete,
-        },
+        { text: 'Xóa', style: 'destructive', onPress: doDelete },
       ]
     );
+  };
+
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return '';
+    try {
+      return new Date(isoString).toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return '';
+    }
   };
 
   return (
@@ -121,107 +128,60 @@ export const MessageRequestsScreen: React.FC<MessageRequestsScreenProps> = ({
           style={styles.backBtn}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel="Trở về"
         >
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </Pressable>
-        <Text style={[Typography.headline, styles.headerTitle, { color: colors.textPrimary }]}>
-          Tin Nhắn Chờ
+        <Text style={[Typography.headline, { color: colors.textPrimary }]}>
+          Tin nhắn chờ
         </Text>
-        <View style={styles.headerRightPlaceholder} />
+        <View style={styles.placeholderBtn} />
       </View>
 
-      {/* Notice Banner */}
+      {/* Explanatory Banner (Mục 11) */}
       <View
         style={[
           styles.noticeBanner,
-          { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+          { backgroundColor: colors.surfaceSecondary, borderColor: colors.borderLight },
         ]}
       >
         <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
         <Text style={[Typography.caption, styles.noticeText, { color: colors.textSecondary }]}>
-          Những người chưa có trong danh sách bạn bè sẽ xuất hiện tại đây. Họ sẽ không biết bạn đã đọc tin nhắn cho đến khi bạn bấm Chấp nhận.
+          Tin nhắn từ người chưa có trong danh sách bạn bè. Họ sẽ không biết bạn đã đọc cho đến khi bạn chấp nhận.
         </Text>
       </View>
 
-      {/* Loading */}
+      {/* Main List */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Loading message="Đang tải tin nhắn chờ..." />
       ) : (
-        /* Requests List */
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
           }
           renderItem={({ item }) => (
-            <View
-              style={[
-                styles.requestCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                Shadows.sm,
-              ]}
-            >
-              <Pressable
-                onPress={() => onOpenChat(item)}
-                style={styles.cardHeader}
-                android_ripple={{ color: colors.surfaceSecondary }}
-              >
-                <Avatar
-                  uri={item.peer.avatar_url}
-                  name={item.peer.username}
-                  size="md"
-                />
-                <View style={styles.cardInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={[Typography.title, styles.senderName, { color: colors.textPrimary }]}>
-                      {item.peer.username}
-                    </Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      {item.last_message?.created_at
-                        ? new Date(item.last_message.created_at).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : ''}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[Typography.bodyMedium, styles.previewText, { color: colors.textSecondary }]}
-                    numberOfLines={2}
-                  >
-                    {item.last_message?.content || 'Đã gửi một tin nhắn...'}
-                  </Text>
-                </View>
-              </Pressable>
-
-              {/* Action Buttons */}
-              <View style={[styles.cardActions, { borderTopColor: colors.borderLight }]}>
-                <Button
-                  title="Chấp nhận"
-                  onPress={() => handleAccept(item)}
-                  variant="primary"
-                  size="sm"
-                  style={styles.actionBtn}
-                />
-                <Button
-                  title="Xóa"
-                  onPress={() => handleDelete(item.id)}
-                  variant="secondary"
-                  size="sm"
-                  style={styles.actionBtn}
-                />
-              </View>
-            </View>
+            <MessageRequestItem
+              id={item.id}
+              peer={item.peer}
+              lastMessage={item.last_message}
+              timeAgo={formatTime(item.last_message?.created_at)}
+              onOpen={() => onOpenChat(item)}
+              onAccept={handleAccept}
+              onReject={handleReject}
+            />
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
-              icon="mail-unread-outline"
-              title="Không có tin nhắn chờ"
+              icon="mail-open-outline"
+              title="Không có tin nhắn chờ nào"
               description="Hộp thư tin nhắn chờ của bạn hiện đang trống."
             />
           }
@@ -241,76 +201,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     padding: Spacing.xs,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerRightPlaceholder: {
+  placeholderBtn: {
     width: 32,
   },
   noticeBanner: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    margin: Spacing.md,
+    alignItems: 'center',
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
     padding: Spacing.md,
     borderRadius: Radius.md,
     borderWidth: 1,
+    gap: Spacing.sm,
   },
   noticeText: {
     flex: 1,
-    marginLeft: Spacing.sm,
     lineHeight: 18,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   listContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xl,
     flexGrow: 1,
-  },
-  requestCard: {
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-  },
-  cardInfo: {
-    flex: 1,
-    marginLeft: Spacing.md,
-    justifyContent: 'center',
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  senderName: {
-    fontSize: 15,
-  },
-  previewText: {
-    lineHeight: 18,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    padding: Spacing.sm,
-    gap: Spacing.sm,
-    borderTopWidth: 1,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 36,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
   },
 });

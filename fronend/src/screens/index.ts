@@ -1,6 +1,7 @@
 export * from './LoginScreen';
 export * from './RegisterScreen';
 export * from './HomeScreen';
+export * from './MessagesScreen';
 export * from './ProfileScreen';
 export * from './SearchScreen';
 export * from './ChatScreen';

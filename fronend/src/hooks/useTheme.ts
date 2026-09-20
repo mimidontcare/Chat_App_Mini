@@ -8,7 +8,7 @@ export function useTheme() {
 
   return {
     isDark,
-    colors,
+    colors, 
     scheme: scheme || 'light',
   };
 }

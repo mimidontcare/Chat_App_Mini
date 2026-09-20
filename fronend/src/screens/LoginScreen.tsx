@@ -28,21 +28,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password');
-      return;
+  const validate = () => {
+    let isValid = true;
+    setUsernameError(null);
+    setPasswordError(null);
+    setGeneralError(null);
+
+    if (!username.trim()) {
+      setUsernameError('Vui lòng nhập tên đăng nhập');
+      isValid = false;
     }
 
+    if (!password) {
+      setPasswordError('Vui lòng nhập mật khẩu');
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Mật khẩu phải có ít nhất 6 ký tự');
+      isValid = false;
+    }
+
+    return isValid;
+  };
+
+  const handleLogin = async () => {
+    if (!validate()) return;
+
     try {
-      setError(null);
       setIsSubmitting(true);
       await login(username.trim(), password);
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setGeneralError(err.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản.');
     } finally {
       setIsSubmitting(false);
     }
@@ -59,22 +79,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header & Brand Logo */}
+          {/* Header & App Brand */}
           <View style={styles.headerContainer}>
             <View
               style={[
                 styles.logoBadge,
                 { backgroundColor: colors.primaryLight },
-                Shadows.sm,
+                Shadows.md,
               ]}
             >
-              <Ionicons name="chatbubbles" size={38} color={colors.primary} />
+              <Ionicons name="chatbubbles" size={42} color={colors.primary} />
             </View>
             <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
-              Welcome Back
+              Chào mừng trở lại!
             </Text>
             <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-              Sign in to continue your conversations
+              Đăng nhập để tiếp tục trò chuyện cùng bạn bè
             </Text>
           </View>
 
@@ -86,7 +106,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               Shadows.md,
             ]}
           >
-            {error ? (
+            {generalError ? (
               <View
                 style={[
                   styles.errorBanner,
@@ -95,31 +115,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               >
                 <Ionicons name="alert-circle" size={18} color={colors.destructive} />
                 <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
-                  {error}
+                  {generalError}
                 </Text>
               </View>
             ) : null}
 
             <Input
-              label="Username"
-              placeholder="Enter your username"
+              label="Tên đăng nhập"
+              placeholder="Nhập username của bạn"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(text) => {
+                setUsername(text);
+                if (usernameError) setUsernameError(null);
+              }}
+              error={usernameError}
               autoCapitalize="none"
               leftIcon="person-outline"
             />
 
             <Input
-              label="Password"
-              placeholder="Enter your password"
+              label="Mật khẩu"
+              placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError(null);
+              }}
+              error={passwordError}
               isPassword
               leftIcon="lock-closed-outline"
             />
 
             <Button
-              title="Sign In"
+              title="Đăng Nhập"
               onPress={handleLogin}
               loading={isSubmitting}
               variant="primary"
@@ -127,10 +155,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               style={styles.submitBtn}
             />
 
-            {/* Quick Demo Login Button */}
+            {/* Quick Demo Explore */}
             {onDemoLogin ? (
               <Button
-                title="Quick Demo Explore (Skip Auth)"
+                title="Khám phá nhanh (Bỏ qua đăng nhập)"
                 onPress={onDemoLogin}
                 variant="outline"
                 size="md"
@@ -140,13 +168,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             ) : null}
           </View>
 
-          {/* Switch to Register */}
+          {/* Footer chuyển sang Đăng ký */}
           <View style={styles.footerRow}>
             <Text style={[Typography.body, { color: colors.textSecondary }]}>
-              Don't have an account?{' '}
+              Chưa có tài khoản?{' '}
             </Text>
             <Button
-              title="Create Account"
+              title="Đăng ký ngay"
               onPress={onNavigateToRegister}
               variant="ghost"
               size="sm"
@@ -175,12 +203,12 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   logoBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+    width: 84,
+    height: 84,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,

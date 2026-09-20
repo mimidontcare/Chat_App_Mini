@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useTheme } from '../hooks/useTheme';
 import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
 import {
   HomeScreen,
+  MessagesScreen,
   ProfileScreen,
   SearchScreen,
   ChatScreen,
@@ -20,8 +21,10 @@ import {
 import api from '../services/api';
 import { getSocket } from '../services/socket';
 
+export type MainTabType = 'home' | 'messages' | 'friends' | 'profile';
+
 type ActiveScreen =
-  | { type: 'tabs'; tab: 'chats' | 'friends' | 'notifications' | 'profile' }
+  | { type: 'tabs'; tab: MainTabType }
   | { type: 'chat'; conversation: any }
   | { type: 'search' }
   | { type: 'friendRequests' }
@@ -34,6 +37,7 @@ export const AppNavigator: React.FC = () => {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   const [friendRequestsCount, setFriendRequestsCount] = useState(0);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
@@ -43,44 +47,52 @@ export const AppNavigator: React.FC = () => {
   // Demo bypass state: allows exploring all screens even before backend is connected
   const [isDemoActive, setIsDemoActive] = useState(false);
 
-  // Active main screen routing
+  // Active main screen routing (Mặc định vào Tab Home)
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>({
     type: 'tabs',
-    tab: 'chats',
+    tab: 'home',
   });
 
   const isAuthenticated = !!user || isDemoActive;
 
-  // Cập nhật số lượng thông báo & lời mời kết bạn từ backend
-  useEffect(() => {
+  // Cập nhật số lượng thông báo & tin nhắn chưa đọc từ backend
+  const fetchBadgeCounts = useCallback(async () => {
     if (!isAuthenticated) return;
+    try {
+      const [notifRes, friendRes, convRes] = await Promise.all([
+        api.get('/notifications/unread-count').catch(() => ({ data: { unread_count: 0 } })),
+        api.get('/friends/requests').catch(() => ({ data: { requests: [] } })),
+        api.get('/conversations').catch(() => ({ data: { conversations: [] } })),
+      ]);
+      setUnreadNotificationsCount(notifRes.data?.unread_count || 0);
+      setFriendRequestsCount(friendRes.data?.requests?.length || 0);
 
-    const fetchBadgeCounts = async () => {
-      try {
-        const [notifRes, friendRes] = await Promise.all([
-          api.get('/notifications/unread-count').catch(() => ({ data: { unread_count: 0 } })),
-          api.get('/friends/requests').catch(() => ({ data: { requests: [] } })),
-        ]);
-        setUnreadNotificationsCount(notifRes.data?.unread_count || 0);
-        setFriendRequestsCount(friendRes.data?.requests?.length || 0);
-      } catch {
-        // bỏ qua
-      }
-    };
+      const convs = convRes.data?.conversations || [];
+      const unreadTotal = convs.reduce((acc: number, c: any) => acc + (c.unread_count || 0), 0);
+      setUnreadMessagesCount(unreadTotal);
+    } catch {
+      // bỏ qua
+    }
+  }, [isAuthenticated]);
 
+  useEffect(() => {
     fetchBadgeCounts();
 
     const socket = getSocket();
     if (socket) {
-      const handleNewNotification = () => {
+      const handleBadgeUpdate = () => {
         fetchBadgeCounts();
       };
-      socket.on('new_notification', handleNewNotification);
+      socket.on('new_notification', handleBadgeUpdate);
+      socket.on('receive_message', handleBadgeUpdate);
+      socket.on('conversation_updated', handleBadgeUpdate);
       return () => {
-        socket.off('new_notification', handleNewNotification);
+        socket.off('new_notification', handleBadgeUpdate);
+        socket.off('receive_message', handleBadgeUpdate);
+        socket.off('conversation_updated', handleBadgeUpdate);
       };
     }
-  }, [isAuthenticated, currentScreen]);
+  }, [fetchBadgeCounts, currentScreen]);
 
   // Render Auth flow if not logged in
   if (!isAuthenticated) {
@@ -120,7 +132,7 @@ export const AppNavigator: React.FC = () => {
     return (
       <ChatScreen
         conversation={currentScreen.conversation}
-        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'messages' })}
       />
     );
   }
@@ -129,7 +141,7 @@ export const AppNavigator: React.FC = () => {
   if (currentScreen.type === 'search') {
     return (
       <SearchScreen
-        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'home' })}
         onStartChat={handleStartChatWithPeer}
       />
     );
@@ -139,7 +151,7 @@ export const AppNavigator: React.FC = () => {
   if (currentScreen.type === 'friendRequests') {
     return (
       <FriendRequestsScreen
-        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'home' })}
         onStartChat={handleStartChatWithPeer}
       />
     );
@@ -149,7 +161,7 @@ export const AppNavigator: React.FC = () => {
   if (currentScreen.type === 'messageRequests') {
     return (
       <MessageRequestsScreen
-        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'home' })}
         onOpenChat={(conv) => setCurrentScreen({ type: 'chat', conversation: conv })}
       />
     );
@@ -159,7 +171,7 @@ export const AppNavigator: React.FC = () => {
   if (currentScreen.type === 'notifications') {
     return (
       <NotificationsScreen
-        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+        onBack={() => setCurrentScreen({ type: 'tabs', tab: 'home' })}
         onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
         onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
         onOpenFriends={() => setCurrentScreen({ type: 'tabs', tab: 'friends' })}
@@ -183,29 +195,33 @@ export const AppNavigator: React.FC = () => {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Screen Body */}
       <View style={styles.screenArea}>
-        {activeTab === 'chats' && (
+        {activeTab === 'home' && (
           <HomeScreen
             onSelectConversation={(conv) =>
               setCurrentScreen({ type: 'chat', conversation: conv })
             }
             onOpenSearch={() => setCurrentScreen({ type: 'search' })}
+            onOpenProfile={() => setCurrentScreen({ type: 'tabs', tab: 'profile' })}
             onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
             onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
             onOpenNotifications={() => setCurrentScreen({ type: 'notifications' })}
+            onNavigateToMessages={() => setCurrentScreen({ type: 'tabs', tab: 'messages' })}
+            onStartChatWithPeer={handleStartChatWithPeer}
+          />
+        )}
+
+        {activeTab === 'messages' && (
+          <MessagesScreen
+            onSelectConversation={(conv) =>
+              setCurrentScreen({ type: 'chat', conversation: conv })
+            }
+            onOpenSearch={() => setCurrentScreen({ type: 'search' })}
           />
         )}
 
         {activeTab === 'friends' && (
           <FriendRequestsScreen
             onStartChat={handleStartChatWithPeer}
-          />
-        )}
-
-        {activeTab === 'notifications' && (
-          <NotificationsScreen
-            onOpenFriendRequests={() => setCurrentScreen({ type: 'friendRequests' })}
-            onOpenMessageRequests={() => setCurrentScreen({ type: 'messageRequests' })}
-            onOpenFriends={() => setCurrentScreen({ type: 'tabs', tab: 'friends' })}
           />
         )}
 
@@ -217,7 +233,7 @@ export const AppNavigator: React.FC = () => {
         )}
       </View>
 
-      {/* Modern Bottom Tabs Bar */}
+      {/* 4 Bottom Tabs Bar (Mục 4: Home, Messages, Friends, Profile) */}
       <View
         style={[
           styles.bottomTabBar,
@@ -229,46 +245,83 @@ export const AppNavigator: React.FC = () => {
           Shadows.md,
         ]}
       >
-        {/* Chats Tab */}
+        {/* Tab 1: Home */}
         <Pressable
-          onPress={() => setCurrentScreen({ type: 'tabs', tab: 'chats' })}
+          onPress={() => setCurrentScreen({ type: 'tabs', tab: 'home' })}
           style={styles.tabItem}
-          hitSlop={6}
+          hitSlop={8}
           accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'chats' }}
+          accessibilityState={{ selected: activeTab === 'home' }}
         >
           <View style={styles.tabIconWrapper}>
             <Ionicons
-              name={activeTab === 'chats' ? 'chatbubbles' : 'chatbubbles-outline'}
-              size={24}
-              color={activeTab === 'chats' ? colors.primary : colors.textSecondary}
+              name={activeTab === 'home' ? 'home' : 'home-outline'}
+              size={23}
+              color={activeTab === 'home' ? colors.primary : colors.textSecondary}
             />
           </View>
           <Text
             style={[
               Typography.caption,
+              styles.tabLabel,
               {
-                color: activeTab === 'chats' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'chats' ? '600' : '400',
+                color: activeTab === 'home' ? colors.primary : colors.textSecondary,
+                fontWeight: activeTab === 'home' ? '600' : '400',
               },
             ]}
           >
-            Đoạn chat
+            Trang chủ
           </Text>
         </Pressable>
 
-        {/* Friends / Requests Tab */}
+        {/* Tab 2: Messages */}
+        <Pressable
+          onPress={() => setCurrentScreen({ type: 'tabs', tab: 'messages' })}
+          style={styles.tabItem}
+          hitSlop={8}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'messages' }}
+        >
+          <View style={styles.tabIconWrapper}>
+            <Ionicons
+              name={activeTab === 'messages' ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+              size={23}
+              color={activeTab === 'messages' ? colors.primary : colors.textSecondary}
+            />
+            {unreadMessagesCount > 0 && (
+              <View style={[styles.tabBadge, { backgroundColor: colors.unreadBadge }]}>
+                <Text style={styles.tabBadgeText}>
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text
+            style={[
+              Typography.caption,
+              styles.tabLabel,
+              {
+                color: activeTab === 'messages' ? colors.primary : colors.textSecondary,
+                fontWeight: activeTab === 'messages' ? '600' : '400',
+              },
+            ]}
+          >
+            Tin nhắn
+          </Text>
+        </Pressable>
+
+        {/* Tab 3: Friends */}
         <Pressable
           onPress={() => setCurrentScreen({ type: 'tabs', tab: 'friends' })}
           style={styles.tabItem}
-          hitSlop={6}
+          hitSlop={8}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'friends' }}
         >
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeTab === 'friends' ? 'people' : 'people-outline'}
-              size={24}
+              size={23}
               color={activeTab === 'friends' ? colors.primary : colors.textSecondary}
             />
             {friendRequestsCount > 0 && (
@@ -280,6 +333,7 @@ export const AppNavigator: React.FC = () => {
           <Text
             style={[
               Typography.caption,
+              styles.tabLabel,
               {
                 color: activeTab === 'friends' ? colors.primary : colors.textSecondary,
                 fontWeight: activeTab === 'friends' ? '600' : '400',
@@ -290,64 +344,32 @@ export const AppNavigator: React.FC = () => {
           </Text>
         </Pressable>
 
-        {/* Notifications Tab */}
-        <Pressable
-          onPress={() => setCurrentScreen({ type: 'tabs', tab: 'notifications' })}
-          style={styles.tabItem}
-          hitSlop={6}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: activeTab === 'notifications' }}
-        >
-          <View style={styles.tabIconWrapper}>
-            <Ionicons
-              name={activeTab === 'notifications' ? 'notifications' : 'notifications-outline'}
-              size={24}
-              color={activeTab === 'notifications' ? colors.primary : colors.textSecondary}
-            />
-            {unreadNotificationsCount > 0 && (
-              <View style={[styles.tabBadge, { backgroundColor: colors.unreadBadge }]}>
-                <Text style={styles.tabBadgeText}>{unreadNotificationsCount}</Text>
-              </View>
-            )}
-          </View>
-          <Text
-            style={[
-              Typography.caption,
-              {
-                color: activeTab === 'notifications' ? colors.primary : colors.textSecondary,
-                fontWeight: activeTab === 'notifications' ? '600' : '400',
-              },
-            ]}
-          >
-            Thông báo
-          </Text>
-        </Pressable>
-
-        {/* Profile Tab */}
+        {/* Tab 4: Profile */}
         <Pressable
           onPress={() => setCurrentScreen({ type: 'tabs', tab: 'profile' })}
           style={styles.tabItem}
-          hitSlop={6}
+          hitSlop={8}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'profile' }}
         >
           <View style={styles.tabIconWrapper}>
             <Ionicons
               name={activeTab === 'profile' ? 'person' : 'person-outline'}
-              size={24}
+              size={23}
               color={activeTab === 'profile' ? colors.primary : colors.textSecondary}
             />
           </View>
           <Text
             style={[
               Typography.caption,
+              styles.tabLabel,
               {
                 color: activeTab === 'profile' ? colors.primary : colors.textSecondary,
                 fontWeight: activeTab === 'profile' ? '600' : '400',
               },
             ]}
           >
-            Profile
+            Hồ sơ
           </Text>
         </Pressable>
       </View>
@@ -393,5 +415,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
+  },
+  tabLabel: {
+    fontSize: 11,
   },
 });

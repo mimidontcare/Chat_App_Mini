@@ -471,19 +471,47 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             <Text style={[Typography.title, styles.headerName, { color: colors.textPrimary }]} numberOfLines={1}>
               {conversation.peer.username}
             </Text>
-            <Text style={[Typography.caption, { color: isPeerOnline ? colors.online : colors.textSecondary }]}>
-              {isPeerOnline ? 'Đang hoạt động' : 'Ngoại tuyến'}
+            <Text
+              style={[
+                Typography.caption,
+                {
+                  color: isPeerTyping
+                    ? colors.primary
+                    : isPeerOnline
+                    ? colors.online
+                    : colors.textSecondary,
+                  fontWeight: isPeerTyping ? '600' : '400',
+                },
+              ]}
+            >
+              {isPeerTyping
+                ? 'Đang nhập...'
+                : isPeerOnline
+                ? 'Đang hoạt động'
+                : 'Không hoạt động'}
             </Text>
           </View>
         </View>
 
         <View style={styles.headerActions}>
           <Pressable
-            onPress={() => fetchMessages()}
+            onPress={() => Alert.alert('Thông báo', 'Tính năng gọi thoại đang được phát triển.')}
             style={styles.headerActionBtn}
             hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Gọi thoại"
           >
-            <Ionicons name="refresh-outline" size={20} color={colors.textSecondary} />
+            <Ionicons name="call-outline" size={20} color={colors.primary} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => Alert.alert('Thông báo', 'Tính năng gọi video đang được phát triển.')}
+            style={styles.headerActionBtn}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Gọi video"
+          >
+            <Ionicons name="videocam-outline" size={22} color={colors.primary} />
           </Pressable>
         </View>
       </View>
@@ -546,15 +574,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             },
           ]}
         >
-          {/* Nút gửi ảnh */}
+          {/* Nút [+] (Mục 8: [ + ] [ Nhập tin nhắn... ] [Send]) */}
           <Pressable
             onPress={handlePickImage}
             style={styles.attachBtn}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Chọn hình ảnh"
+            accessibilityLabel="Thêm hình ảnh hoặc đính kèm"
           >
-            <Ionicons name="image-outline" size={24} color={colors.primary} />
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
           </Pressable>
 
           {/* Ô nhập nội dung tin nhắn kèm nút Emoji */}

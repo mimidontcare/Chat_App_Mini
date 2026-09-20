@@ -5,18 +5,18 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
-import { Avatar, Button, EmptyState } from '../components/common';
+import { Avatar, Button, EmptyState, Loading, FriendRequestItem } from '../components/common';
 import api from '../services/api';
 
-export interface FriendRequestItem {
+export interface FriendRequestItemData {
   id: number;
   created_at: string;
   status: string;
@@ -28,12 +28,13 @@ export interface FriendRequestItem {
   };
 }
 
-export interface FriendItem {
+export interface FriendItemData {
   id: number;
   username: string;
   email: string | null;
   avatar_url: string | null;
   friend_since: string;
+  is_online?: boolean;
 }
 
 interface FriendRequestsScreenProps {
@@ -46,9 +47,11 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
   onStartChat,
 }) => {
   const { colors } = useTheme();
+  const { isUserOnline } = useOnlineStatus();
   const [activeTab, setActiveTab] = useState<'requests' | 'friends'>('requests');
-  const [requests, setRequests] = useState<FriendRequestItem[]>([]);
-  const [friends, setFriends] = useState<FriendItem[]>([]);
+  const [requests, setRequests] = useState<FriendRequestItemData[]>([]);
+  const [friends, setFriends] = useState<FriendItemData[]>([]);
+  const [acceptedIds, setAcceptedIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -91,19 +94,17 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
     setIsRefreshing(false);
   };
 
-  // Chấp nhận kết bạn
+  // Chấp nhận kết bạn kèm visual feedback
   const handleAccept = async (requestId: number) => {
     try {
-      // Optimistic update
-      const acceptedReq = requests.find((r) => r.id === requestId);
-      setRequests((prev) => prev.filter((r) => r.id !== requestId));
-
+      setAcceptedIds((prev) => [...prev, requestId]);
       const res = await api.post(`/friends/request/${requestId}/accept`);
       if (res.data?.success) {
         await fetchFriends();
       }
     } catch (err: any) {
       Alert.alert('Lỗi', err.message || 'Không thể chấp nhận lời mời kết bạn.');
+      setAcceptedIds((prev) => prev.filter((id) => id !== requestId));
       await fetchRequests();
     }
   };
@@ -119,9 +120,22 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
     }
   };
 
+  const formatRequestTime = (isoString?: string) => {
+    if (!isoString) return '';
+    try {
+      return new Date(isoString).toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Top Header Bar */}
+      {/* Top Header */}
       <View style={[styles.header, { borderBottomColor: colors.borderLight }]}>
         {onBack ? (
           <Pressable
@@ -129,28 +143,32 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
             style={styles.backBtn}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Trở về"
           >
             <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </Pressable>
         ) : (
-          <View style={styles.backBtnPlaceholder} />
+          <View style={styles.placeholderBtn} />
         )}
-        <Text style={[Typography.headline, styles.headerTitle, { color: colors.textPrimary }]}>
-          Bạn Bè
+        <Text style={[Typography.headline, { color: colors.textPrimary }]}>
+          Bạn bè
         </Text>
-        <View style={styles.headerRightPlaceholder} />
+        <View style={styles.placeholderBtn} />
       </View>
 
       {/* Segmented Tab Switcher */}
-      <View style={[styles.tabBar, { backgroundColor: colors.surfaceSecondary }]}>
+      <View style={[styles.segmentedTabs, { backgroundColor: colors.surfaceSecondary }]}>
         <Pressable
           onPress={() => setActiveTab('requests')}
-          style={[styles.tabButton, activeTab === 'requests' && { backgroundColor: colors.surface }]}
+          style={[
+            styles.segmentBtn,
+            activeTab === 'requests' && [styles.activeSegmentBtn, { backgroundColor: colors.surface }, Shadows.sm],
+          ]}
         >
           <Text
             style={[
-              styles.tabButtonText,
+              Typography.caption,
+              styles.segmentText,
               {
                 color: activeTab === 'requests' ? colors.primary : colors.textSecondary,
                 fontWeight: activeTab === 'requests' ? '700' : '500',
@@ -163,113 +181,90 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
 
         <Pressable
           onPress={() => setActiveTab('friends')}
-          style={[styles.tabButton, activeTab === 'friends' && { backgroundColor: colors.surface }]}
+          style={[
+            styles.segmentBtn,
+            activeTab === 'friends' && [styles.activeSegmentBtn, { backgroundColor: colors.surface }, Shadows.sm],
+          ]}
         >
           <Text
             style={[
-              styles.tabButtonText,
+              Typography.caption,
+              styles.segmentText,
               {
                 color: activeTab === 'friends' ? colors.primary : colors.textSecondary,
                 fontWeight: activeTab === 'friends' ? '700' : '500',
               },
             ]}
           >
-            Tất cả bạn bè ({friends.length})
+            Danh sách bạn bè ({friends.length})
           </Text>
         </Pressable>
       </View>
 
-      {/* Main Content */}
+      {/* Body List */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <Loading message="Đang tải dữ liệu bạn bè..." />
       ) : activeTab === 'requests' ? (
-        /* Requests Tab */
         <FlatList
           data={requests}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
           }
           renderItem={({ item }) => (
-            <View
-              style={[
-                styles.requestCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-                Shadows.sm,
-              ]}
-            >
-              <Avatar
-                uri={item.sender.avatar_url}
-                name={item.sender.username}
-                size="md"
-              />
-
-              <View style={styles.cardContent}>
-                <View style={styles.topInfoRow}>
-                  <Text style={[Typography.title, styles.senderName, { color: colors.textPrimary }]}>
-                    {item.sender.username}
-                  </Text>
-                  <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                    {new Date(item.created_at).toLocaleDateString('vi-VN')}
-                  </Text>
-                </View>
-
-                {item.sender.email ? (
-                  <Text style={[Typography.caption, styles.emailText, { color: colors.textSecondary }]}>
-                    {item.sender.email}
-                  </Text>
-                ) : null}
-
-                {/* Action Buttons */}
-                <View style={styles.btnRow}>
-                  <Button
-                    title="Chấp nhận"
-                    onPress={() => handleAccept(item.id)}
-                    variant="primary"
-                    size="sm"
-                    style={styles.actionBtn}
-                  />
-                  <Button
-                    title="Xóa"
-                    onPress={() => handleReject(item.id)}
-                    variant="secondary"
-                    size="sm"
-                    style={styles.actionBtn}
-                  />
-                </View>
-              </View>
-            </View>
+            <FriendRequestItem
+              id={item.id}
+              user={item.sender}
+              timeAgo={`Đã gửi vào ${formatRequestTime(item.created_at)}`}
+              isAccepted={acceptedIds.includes(item.id)}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              onStartChat={onStartChat}
+            />
           )}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
-              icon="people-outline"
+              icon="person-add-outline"
               title="Không có lời mời nào"
               description="Hiện tại bạn không có lời mời kết bạn nào đang chờ xử lý."
             />
           }
         />
       ) : (
-        /* Friends List Tab */
         <FlatList
           data={friends}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={
-            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
           }
           renderItem={({ item }) => (
             <View
               style={[
                 styles.friendCard,
-                { backgroundColor: colors.surface, borderColor: colors.borderLight },
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderLight,
+                },
+                Shadows.sm,
               ]}
             >
               <Avatar
                 uri={item.avatar_url}
                 name={item.username}
                 size="md"
+                showStatus
+                isOnline={isUserOnline(item.id)}
               />
 
               <View style={styles.friendInfo}>
@@ -285,9 +280,9 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
                 <Button
                   title="Nhắn tin"
                   onPress={() => onStartChat(item)}
-                  variant="outline"
+                  variant="primary"
                   size="sm"
-                  leftIcon={<Ionicons name="chatbubble" size={14} color={colors.primary} />}
+                  leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
                 />
               )}
             </View>
@@ -295,9 +290,9 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
-              icon="person-add-outline"
-              title="Chưa có bạn bè"
-              description="Hãy dùng chức năng Tìm kiếm để kết nối với những người bạn mới!"
+              icon="people-outline"
+              title="Chưa có bạn bè nào"
+              description="Hãy tìm kiếm và kết bạn với người dùng khác để bắt đầu trò chuyện!"
             />
           }
         />
@@ -316,84 +311,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: {
     padding: Spacing.xs,
   },
-  backBtnPlaceholder: {
+  placeholderBtn: {
     width: 32,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  headerRightPlaceholder: {
-    width: 32,
-  },
-  tabBar: {
+  segmentedTabs: {
     flexDirection: 'row',
-    marginHorizontal: Spacing.md,
-    marginVertical: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
     padding: 4,
     borderRadius: Radius.pill,
   },
-  tabButton: {
+  segmentBtn: {
     flex: 1,
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.pill,
   },
-  tabButtonText: {
+  activeSegmentBtn: {
+    // shadow applied
+  },
+  segmentText: {
     fontSize: 13,
   },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   listContent: {
-    padding: Spacing.md,
     flexGrow: 1,
-  },
-  requestCard: {
-    flexDirection: 'row',
-    padding: Spacing.md,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.md,
-  },
-  cardContent: {
-    flex: 1,
-    marginLeft: Spacing.md,
-  },
-  topInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  senderName: {
-    fontSize: 15,
-  },
-  emailText: {
-    marginTop: 2,
-    marginBottom: Spacing.sm,
-  },
-  btnRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  actionBtn: {
-    flex: 1,
-    height: 36,
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.xl,
   },
   friendCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.md,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     borderWidth: 1,
     marginBottom: Spacing.sm,
   },
@@ -403,7 +358,6 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
   },
   friendName: {
-    fontSize: 15,
     marginBottom: 2,
   },
 });
