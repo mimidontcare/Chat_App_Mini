@@ -85,11 +85,11 @@ export const AppNavigator: React.FC = () => {
       };
       socket.on('new_notification', handleBadgeUpdate);
       socket.on('receive_message', handleBadgeUpdate);
-      socket.on('conversation_updated', handleBadgeUpdate);
+      socket.on('messages_marked_read', handleBadgeUpdate);
       return () => {
         socket.off('new_notification', handleBadgeUpdate);
         socket.off('receive_message', handleBadgeUpdate);
-        socket.off('conversation_updated', handleBadgeUpdate);
+        socket.off('messages_marked_read', handleBadgeUpdate);
       };
     }
   }, [fetchBadgeCounts, currentScreen]);

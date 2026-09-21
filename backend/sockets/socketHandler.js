@@ -105,13 +105,12 @@ const socketHandler = (io) => {
 
       console.log(`Phát tin nhắn realtime trong conv_${conversation_id}:`, message.content || '[Image]');
 
-      // Gửi cho tất cả những người đang mở phòng chat này (trừ chính người gửi)
-      socket.to(`conv_${conversation_id}`).emit('receive_message', message);
-
-      // Đồng thời gửi tới phòng cá nhân của người nhận (nếu họ đang ở ngoài HomeScreen)
+      // Phát sự kiện tới phòng chat và phòng cá nhân người nhận
+      // Socket.IO gom chuỗi .to().to() tự động lọc trùng socket nếu client ở cả 2 phòng
       if (receiver_id) {
-        socket.to(`user_${receiver_id}`).emit('receive_message', message);
-        socket.to(`user_${receiver_id}`).emit('conversation_updated', message);
+        socket.to(`conv_${conversation_id}`).to(`user_${receiver_id}`).emit('receive_message', message);
+      } else {
+        socket.to(`conv_${conversation_id}`).emit('receive_message', message);
       }
     });
 

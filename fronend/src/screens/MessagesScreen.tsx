@@ -104,6 +104,11 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
           const targetConv = prev[convIndex];
           const isFromPeer = Number(actualMessage.sender_id) !== Number(user?.id);
 
+          // Tránh đếm lặp unread_count nếu tin nhắn đã tồn tại
+          if (actualMessage.id && targetConv.last_message?.id === actualMessage.id) {
+            return prev;
+          }
+
           const updatedConv: ConversationItemData = {
             ...targetConv,
             last_message: {
@@ -127,12 +132,20 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
       });
     };
 
+    const handleMessagesMarkedRead = (data: { conversation_id: number }) => {
+      const convId = Number(data?.conversation_id);
+      if (!convId) return;
+      setConversations((prev) =>
+        prev.map((c) => (Number(c.id) === convId ? { ...c, unread_count: 0 } : c))
+      );
+    };
+
     socket.on('receive_message', handleRealtimeMessage);
-    socket.on('conversation_updated', handleRealtimeMessage);
+    socket.on('messages_marked_read', handleMessagesMarkedRead);
 
     return () => {
       socket.off('receive_message', handleRealtimeMessage);
-      socket.off('conversation_updated', handleRealtimeMessage);
+      socket.off('messages_marked_read', handleMessagesMarkedRead);
     };
   }, [fetchConversations, user?.id]);
 
@@ -274,8 +287,12 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
               }}
               lastMessage={item.last_message}
               unreadCount={item.unread_count}
-              currentUserId={user?.id}
-              onPress={() => onSelectConversation(item)}
+              onPress={() => {
+                setConversations((prev) =>
+                  prev.map((c) => (c.id === item.id ? { ...c, unread_count: 0 } : c))
+                );
+                onSelectConversation(item);
+              }}
             />
           )}
           refreshControl={

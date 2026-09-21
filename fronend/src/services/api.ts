@@ -1,9 +1,24 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Địa chỉ IP máy tính trong mạng Wi-Fi (dùng cho điện thoại thật chạy Expo Go)
-const LOCAL_IP = '10.78.29.177';
+// Tự động lấy IP máy tính từ Expo Metro bundler khi chạy Expo Go, tránh lỗi khi đổi mạng/phát 4G hotspot
+const getDevServerIp = () => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any).manifest?.debuggerHost;
+  if (hostUri) {
+    const ip = hostUri.split(':')[0];
+    if (ip && ip !== 'localhost' && ip !== '127.0.0.1') {
+      return ip;
+    }
+  }
+  return '10.96.225.177'; // IP mạng máy tính khi kết nối Điểm phát sóng di động (Hotspot)
+};
+
+const LOCAL_IP = getDevServerIp();
 
 export const BASE_URL = Platform.select({
   web: 'http://localhost:5000/api',

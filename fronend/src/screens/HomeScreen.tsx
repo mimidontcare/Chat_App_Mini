@@ -93,12 +93,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     };
 
     socket.on('receive_message', handleUpdate);
-    socket.on('conversation_updated', handleUpdate);
+    socket.on('messages_marked_read', handleUpdate);
     socket.on('new_notification', handleUpdate);
 
     return () => {
       socket.off('receive_message', handleUpdate);
-      socket.off('conversation_updated', handleUpdate);
+      socket.off('messages_marked_read', handleUpdate);
       socket.off('new_notification', handleUpdate);
     };
   }, [loadDashboardData]);
