@@ -6,6 +6,7 @@ import {
   ScrollView,
   RefreshControl,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,7 +68,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         api.get('/notifications/unread-count').catch(() => ({ data: { unread_count: 0 } })),
       ]);
 
-      setRecentConversations((convRes.data?.conversations || []).slice(0, 4));
+      setRecentConversations((convRes.data?.conversations || []).slice(0, 5));
       setFriends(friendsRes.data?.friends || []);
       setFriendRequestsCount(friendReqRes.data?.requests?.length || 0);
       setMessageRequestsCount(msgReqRes.data?.requests?.length || 0);
@@ -199,7 +200,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <View style={styles.searchWrapper}>
           <SearchBar
             value=""
-            placeholder="Tìm kiếm bạn bè hoặc người dùng..."
+            placeholder="Tìm kiếm bạn bè hoặc tin nhắn..."
             onPress={onOpenSearch}
             editable={false}
           />
@@ -214,9 +215,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={({ pressed }) => [
                   styles.shortcutCard,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.primary,
-                    opacity: pressed ? 0.85 : 1,
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+                    borderColor: isDark ? 'rgba(59,130,246,0.3)' : colors.border,
+                    opacity: pressed ? 0.88 : 1,
                   },
                   Shadows.sm,
                 ]}
@@ -229,7 +230,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {friendRequestsCount} lời mời kết bạn
                   </Text>
                   <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
-                    Xem ngay →
+                    Xem và phản hồi →
                   </Text>
                 </View>
               </Pressable>
@@ -241,14 +242,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 style={({ pressed }) => [
                   styles.shortcutCard,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.secondary,
-                    opacity: pressed ? 0.85 : 1,
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+                    borderColor: isDark ? 'rgba(99,102,241,0.3)' : colors.border,
+                    opacity: pressed ? 0.88 : 1,
                   },
                   Shadows.sm,
                 ]}
               >
-                <View style={[styles.shortcutIconWrap, { backgroundColor: 'rgba(99, 102, 241, 0.12)' }]}>
+                <View style={[styles.shortcutIconWrap, { backgroundColor: colors.secondaryLight }]}>
                   <Ionicons name="mail-unread" size={18} color={colors.secondary} />
                 </View>
                 <View style={styles.shortcutInfo}>
@@ -256,7 +257,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     {messageRequestsCount} tin nhắn chờ
                   </Text>
                   <Text style={[Typography.caption, { color: colors.secondary, fontWeight: '600' }]}>
-                    Kiểm tra →
+                    Kiểm tra ngay →
                   </Text>
                 </View>
               </Pressable>
@@ -267,7 +268,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Active Friends Horizontal Carousel */}
         <View style={styles.sectionHeader}>
           <Text style={[Typography.title, { color: colors.textPrimary }]}>
-            Bạn bè ({friends.length})
+            Bạn bè đang hoạt động ({friends.filter(f => isUserOnline(f.id)).length})
           </Text>
           <Pressable onPress={onOpenSearch} hitSlop={6}>
             <Text style={[Typography.caption, { color: colors.primary, fontWeight: '600' }]}>
@@ -296,6 +297,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     size="lg"
                     showStatus
                     isOnline={isOnline}
+                    hasRing={isOnline}
                   />
                   <Text
                     style={[Typography.caption, styles.friendStoryName, { color: colors.textPrimary }]}
@@ -319,7 +321,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         ) : (
           <Pressable
             onPress={onOpenSearch}
-            style={[styles.emptyFriendsBanner, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+            style={[styles.emptyFriendsBanner, { backgroundColor: colors.surface, borderColor: colors.borderLight }, Shadows.sm]}
           >
             <Ionicons name="people-outline" size={20} color={colors.primary} />
             <Text style={[Typography.caption, { color: colors.textSecondary, marginLeft: 8 }]}>
@@ -328,7 +330,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </Pressable>
         )}
 
-        {/* Recent Conversations Section (Flat List without boxy card wrapper) */}
+        {/* Recent Conversations Section */}
         <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
           <Text style={[Typography.title, { color: colors.textPrimary }]}>
             Đoạn chat gần đây
@@ -365,17 +367,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             ))}
           </View>
         ) : (
-          <View style={[styles.emptyRecentBox, { borderColor: colors.borderLight }]}>
+          <View style={[styles.emptyRecentBox, { borderColor: colors.borderLight, backgroundColor: colors.surfaceSecondary }]}>
             <Ionicons name="chatbubbles-outline" size={36} color={colors.textMuted} />
-            <Text style={[Typography.bodyMedium, { color: colors.textPrimary, marginTop: Spacing.sm, fontWeight: '600' }]}>
+            <Text style={[Typography.bodyMedium, { color: colors.textPrimary, marginTop: Spacing.sm, fontWeight: '700' }]}>
               Chưa có cuộc trò chuyện nào
             </Text>
             <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4, marginBottom: Spacing.md }]}>
-              Bạn có thể tìm kiếm bạn bè để bắt đầu trò chuyện.
+              Bạn có thể tìm kiếm bạn bè để bắt đầu trò chuyện ngay.
             </Text>
             <Pressable
               onPress={onOpenSearch}
-              style={[styles.emptyActionBtn, { backgroundColor: colors.primary }]}
+              style={[
+                styles.emptyActionBtn,
+                { backgroundColor: colors.primary },
+                Shadows.glow,
+              ]}
             >
               <Ionicons name="search" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
               <Text style={[Typography.caption, { color: '#FFFFFF', fontWeight: '700' }]}>
@@ -398,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   userProfileButton: {
@@ -406,7 +412,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
     flex: 1,
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   greetingContainer: {
     flex: 1,
   },
@@ -421,43 +428,45 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   headerBadgeWrapper: {
     position: 'absolute',
     top: -3,
     right: -3,
   },
   scrollContent: {
-    paddingBottom: Spacing.xxl,
+    paddingBottom: Spacing.xxl + 40,
   },
   searchWrapper: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 4,
   },
   quickShortcutsRow: {
     paddingHorizontal: Spacing.lg,
-    marginTop: 8,
+    marginTop: 10,
     gap: Spacing.sm,
   },
   shortcutCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.md,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     gap: Spacing.md,
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   shortcutIconWrap: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -470,23 +479,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 10,
   },
   friendsHorizontalList: {
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   friendStoryItem: {
     alignItems: 'center',
-    width: 62,
-  },
+    width: 66,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   friendStoryName: {
-    marginTop: 5,
+    marginTop: 6,
     textAlign: 'center',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   friendStatusText: {
     fontSize: 10,
@@ -495,14 +505,15 @@ const styles = StyleSheet.create({
   },
   emptyFriendsBanner: {
     marginHorizontal: Spacing.lg,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: Spacing.md,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   recentListContainer: {
     marginHorizontal: 0,
     marginTop: 2,
@@ -510,7 +521,7 @@ const styles = StyleSheet.create({
   emptyRecentBox: {
     marginHorizontal: Spacing.lg,
     padding: Spacing.xl,
-    borderRadius: Radius.md,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderStyle: 'dashed',
     alignItems: 'center',
@@ -520,8 +531,9 @@ const styles = StyleSheet.create({
   emptyActionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: Radius.full,
-  },
+    paddingVertical: 9,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: Radius.pill,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
 });

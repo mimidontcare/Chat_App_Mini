@@ -7,6 +7,7 @@ import {
   Pressable,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,7 +47,7 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
   onBack,
   onStartChat,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { isUserOnline } = useOnlineStatus();
   const [activeTab, setActiveTab] = useState<'requests' | 'friends'>('requests');
   const [requests, setRequests] = useState<FriendRequestItemData[]>([]);
@@ -162,7 +163,11 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
           onPress={() => setActiveTab('requests')}
           style={[
             styles.segmentBtn,
-            activeTab === 'requests' && [styles.activeSegmentBtn, { backgroundColor: colors.surface }, Shadows.sm],
+            activeTab === 'requests' && [
+              styles.activeSegmentBtn,
+              { backgroundColor: colors.surface },
+              Shadows.sm,
+            ],
           ]}
         >
           <Text
@@ -183,7 +188,11 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
           onPress={() => setActiveTab('friends')}
           style={[
             styles.segmentBtn,
-            activeTab === 'friends' && [styles.activeSegmentBtn, { backgroundColor: colors.surface }, Shadows.sm],
+            activeTab === 'friends' && [
+              styles.activeSegmentBtn,
+              { backgroundColor: colors.surface },
+              Shadows.sm,
+            ],
           ]}
         >
           <Text
@@ -220,7 +229,7 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
             <FriendRequestItem
               id={item.id}
               user={item.sender}
-              timeAgo={`Đã gửi vào ${formatRequestTime(item.created_at)}`}
+              timeAgo={formatRequestTime(item.created_at)}
               isAccepted={acceptedIds.includes(item.id)}
               onAccept={handleAccept}
               onReject={handleReject}
@@ -230,9 +239,9 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
-              icon="person-add-outline"
+              icon="mail-open-outline"
               title="Không có lời mời nào"
-              description="Hiện tại bạn không có lời mời kết bạn nào đang chờ xử lý."
+              description="Hiện tại bạn chưa nhận được lời mời kết bạn nào mới."
             />
           }
         />
@@ -248,45 +257,49 @@ export const FriendRequestsScreen: React.FC<FriendRequestsScreenProps> = ({
               colors={[colors.primary]}
             />
           }
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.friendCard,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.borderLight,
-                },
-                Shadows.sm,
-              ]}
-            >
-              <Avatar
-                uri={item.avatar_url}
-                name={item.username}
-                size="md"
-                showStatus
-                isOnline={isUserOnline(item.id)}
-              />
-
-              <View style={styles.friendInfo}>
-                <Text style={[Typography.title, styles.friendName, { color: colors.textPrimary }]}>
-                  {item.username}
-                </Text>
-                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                  {item.email || 'Bạn bè'}
-                </Text>
-              </View>
-
-              {onStartChat && (
-                <Button
-                  title="Nhắn tin"
-                  onPress={() => onStartChat(item)}
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
+          renderItem={({ item }) => {
+            const isOnline = isUserOnline(item.id);
+            return (
+              <View
+                style={[
+                  styles.friendCard,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+                    borderColor: colors.borderLight,
+                  },
+                  Shadows.sm,
+                ]}
+              >
+                <Avatar
+                  uri={item.avatar_url}
+                  name={item.username}
+                  size="md"
+                  showStatus
+                  isOnline={isOnline}
+                  hasRing={isOnline}
                 />
-              )}
-            </View>
-          )}
+
+                <View style={styles.friendInfo}>
+                  <Text style={[Typography.title, styles.friendName, { color: colors.textPrimary }]}>
+                    {item.username}
+                  </Text>
+                  <Text style={[Typography.caption, { color: isOnline ? colors.online : colors.textSecondary }]}>
+                    {isOnline ? 'Đang hoạt động' : item.email || 'Bạn bè'}
+                  </Text>
+                </View>
+
+                {onStartChat && (
+                  <Button
+                    title="Nhắn tin"
+                    onPress={() => onStartChat(item)}
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Ionicons name="chatbubble" size={14} color="#FFFFFF" />}
+                  />
+                )}
+              </View>
+            );
+          }}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <EmptyState
@@ -332,25 +345,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: Radius.pill,
-  },
-  activeSegmentBtn: {
-    // shadow applied
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', transition: 'all 150ms ease' } : {}),
+  } as any,
+  activeSegmentBtn: {},
   segmentText: {
-    fontSize: 13,
+    letterSpacing: -0.1,
   },
   listContent: {
-    flexGrow: 1,
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.xxl + 40,
   },
   friendCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.md,
-    borderRadius: Radius.md,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   friendInfo: {
     flex: 1,

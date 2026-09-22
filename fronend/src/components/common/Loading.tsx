@@ -11,7 +11,7 @@ export interface LoadingProps {
 }
 
 export const Loading: React.FC<LoadingProps> = ({
-  message = 'Loading...',
+  message = 'Đang tải dữ liệu...',
   fullScreen = false,
   size = 'large',
   style,
@@ -41,7 +41,7 @@ export const ConversationSkeleton: React.FC = () => {
 
   return (
     <View style={styles.skeletonContainer}>
-      {[1, 2, 3, 4, 5].map((key) => (
+      {[1, 2, 3, 4, 5, 6].map((key) => (
         <View key={key} style={styles.skeletonRow}>
           <View
             style={[
@@ -77,12 +77,14 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   container: {
-    padding: Spacing.lg,
+    padding: Spacing.xl,
     justifyContent: 'center',
     alignItems: 'center',
   },
   message: {
     marginTop: Spacing.md,
+    fontWeight: '500',
+    letterSpacing: -0.1,
   },
   skeletonContainer: {
     paddingHorizontal: Spacing.lg,
@@ -104,8 +106,8 @@ const styles = StyleSheet.create({
   },
   skeletonBarTitle: {
     width: '45%',
-    height: 14,
-    borderRadius: Radius.xs,
+    height: 15,
+    borderRadius: Radius.sm,
     marginBottom: Spacing.xs + 2,
   },
   skeletonBarSub: {

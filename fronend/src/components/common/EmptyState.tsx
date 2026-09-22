@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Typography, Spacing, Radius } from '../../constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '../../constants/theme';
 import { Button } from './Button';
 
 export interface EmptyStateProps {
@@ -26,8 +26,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <View style={[styles.container, style]}>
-      <View style={[styles.iconCircle, { backgroundColor: colors.primaryLight }]}>
-        <Ionicons name={icon} size={38} color={colors.primary} />
+      <View
+        style={[
+          styles.iconCircle,
+          {
+            backgroundColor: colors.primaryLight,
+            borderColor: colors.borderLight,
+          },
+          Shadows.sm,
+        ]}
+      >
+        <Ionicons name={icon} size={42} color={colors.primary} />
       </View>
 
       <Text style={[Typography.title, styles.title, { color: colors.textPrimary }]}>
@@ -66,26 +75,29 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xxxl,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.lg,
+    borderWidth: 1.5,
   },
   title: {
     fontSize: 18,
     lineHeight: 24,
     textAlign: 'center',
     marginBottom: Spacing.xs + 2,
+    fontWeight: '700',
   },
   description: {
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing.xl,
-    maxWidth: 280,
+    maxWidth: 320,
+    fontSize: 14,
   },
   actionButton: {
-    minWidth: 160,
+    minWidth: 170,
   },
 });

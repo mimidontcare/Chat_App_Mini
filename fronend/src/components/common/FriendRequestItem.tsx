@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Typography, Spacing, Radius } from '../../constants/theme';
+import { Typography, Spacing, Radius, Shadows } from '../../constants/theme';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 
@@ -31,16 +31,17 @@ export const FriendRequestItem: React.FC<FriendRequestItemProps> = ({
   onStartChat,
   style,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: colors.surface,
+          backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
           borderColor: colors.border,
         },
+        Shadows.sm,
         style,
       ]}
     >
@@ -104,39 +105,40 @@ export const FriendRequestItem: React.FC<FriendRequestItemProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   infoContainer: {
-    marginLeft: Spacing.md,
     flex: 1,
+    marginLeft: Spacing.md,
   },
   username: {
-    marginBottom: 2,
+    fontSize: 16,
+    fontWeight: '700',
   },
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
     justifyContent: 'flex-end',
-    alignItems: 'center',
   },
   actionBtn: {
     flex: 1,
   },
   acceptedBanner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
+    paddingVertical: Spacing.xs,
   },
   chatButton: {
-    minWidth: 90,
+    minWidth: 110,
   },
 });

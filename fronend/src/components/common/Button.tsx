@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   Text,
@@ -15,7 +15,7 @@ import { Typography, Radius, Spacing, Shadows } from '../../constants/theme';
 export interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'destructive' | 'ghost' | 'glass';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   disabled?: boolean;
@@ -37,45 +37,84 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Determine container dimensions based on size
+  // Kích thước chuẩn Pro Max Design System
   const sizeStyles: ViewStyle = {
-    sm: { height: 36, paddingHorizontal: Spacing.md, borderRadius: Radius.sm },
-    md: { height: 46, paddingHorizontal: Spacing.lg, borderRadius: Radius.md },
-    lg: { height: 52, paddingHorizontal: Spacing.xl, borderRadius: Radius.md },
+    sm: { height: 38, paddingHorizontal: Spacing.md, borderRadius: Radius.sm },
+    md: { height: 48, paddingHorizontal: Spacing.lg, borderRadius: Radius.md },
+    lg: { height: 54, paddingHorizontal: Spacing.xl, borderRadius: Radius.lg },
   }[size];
 
-  // Font size mapping
+  // Kích thước chữ và độ đậm
   const textSizes: TextStyle = {
-    sm: { fontSize: 13, lineHeight: 18 },
-    md: { fontSize: 15, lineHeight: 20 },
-    lg: { fontSize: 16, lineHeight: 22 },
+    sm: { fontSize: 13, lineHeight: 18, fontWeight: '600' as const },
+    md: { fontSize: 15, lineHeight: 20, fontWeight: '600' as const },
+    lg: { fontSize: 16, lineHeight: 22, fontWeight: '700' as const },
   }[size];
 
-  // Background and border mapping
   let bgStyle: ViewStyle = {};
   let textColor: string = colors.onPrimary;
 
   switch (variant) {
     case 'primary':
-      bgStyle = { backgroundColor: colors.primary, ...Shadows.sm };
+      bgStyle = {
+        backgroundColor: colors.primary,
+        ...(Shadows.glow as any),
+        ...(Platform.OS === 'web'
+          ? {
+              backgroundImage: 'linear-gradient(135deg, #2563EB 0%, #4F46E5 100%)',
+              borderWidth: 0,
+            }
+          : {}),
+      };
       textColor = colors.onPrimary;
       break;
     case 'secondary':
-      bgStyle = { backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border };
+      bgStyle = {
+        backgroundColor: colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor: colors.border,
+        ...(Shadows.sm as any),
+      };
+      textColor = colors.textPrimary;
+      break;
+    case 'glass':
+      bgStyle = {
+        backgroundColor: colors.glassBg,
+        borderWidth: 1,
+        borderColor: colors.glassBorder,
+        ...(Platform.OS === 'web'
+          ? {
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }
+          : {}),
+        ...(Shadows.sm as any),
+      };
       textColor = colors.textPrimary;
       break;
     case 'outline':
-      bgStyle = { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.primary };
+      bgStyle = {
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderColor: isHovered ? colors.primaryDark : colors.primary,
+      };
       textColor = colors.primary;
       break;
     case 'destructive':
-      bgStyle = { backgroundColor: colors.destructiveLight };
+      bgStyle = {
+        backgroundColor: colors.destructiveLight,
+        borderWidth: 1,
+        borderColor: isDark ? colors.destructive : 'rgba(239, 68, 68, 0.2)',
+      };
       textColor = colors.destructive;
       break;
     case 'ghost':
-      bgStyle = { backgroundColor: 'transparent' };
+      bgStyle = {
+        backgroundColor: isHovered ? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)') : 'transparent',
+      };
       textColor = colors.primary;
       break;
   }
@@ -85,21 +124,18 @@ export const Button: React.FC<ButtonProps> = ({
   return (
     <Pressable
       onPress={isInteractive ? onPress : undefined}
+      onHoverIn={() => setIsHovered(true)}
+      onHoverOut={() => setIsHovered(false)}
       style={({ pressed }) => [
         styles.base,
         sizeStyles,
         bgStyle,
+        isHovered && isInteractive && styles.hovered,
         disabled && styles.disabled,
         pressed && isInteractive && styles.pressed,
+        Platform.OS === 'web' ? ({ cursor: isInteractive ? 'pointer' : 'default' } as any) : null,
         style,
       ]}
-      android_ripple={
-        isInteractive
-          ? {
-              color: variant === 'primary' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.06)',
-            }
-          : null
-      }
       accessibilityRole="button"
       accessibilityState={{ disabled: !isInteractive }}
     >
@@ -133,7 +169,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
+    transitionDuration: '200ms',
+  } as any,
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -145,10 +182,15 @@ const styles = StyleSheet.create({
   rightIconWrapper: {
     marginLeft: Spacing.sm,
   },
+  hovered: {
+    opacity: 0.95,
+    transform: [{ scale: 1.01 }],
+  },
   pressed: {
-    opacity: Platform.OS === 'ios' ? 0.8 : 0.9,
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.45,
   },
 });

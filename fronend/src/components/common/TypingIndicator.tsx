@@ -1,14 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Typography, Radius, Spacing } from '../../constants/theme';
+import { Typography, Radius, Spacing, Shadows } from '../../constants/theme';
 
 export interface TypingIndicatorProps {
   username?: string;
 }
 
-export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'Someone' }) => {
-  const { colors } = useTheme();
+export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'Đối phương' }) => {
+  const { colors, isDark } = useTheme();
 
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
@@ -19,7 +19,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'So
       return Animated.loop(
         Animated.sequence([
           Animated.timing(animValue, {
-            toValue: -4,
+            toValue: -5,
             duration: 350,
             delay,
             useNativeDriver: true,
@@ -34,8 +34,8 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'So
     };
 
     const anim1 = createAnimation(dot1, 0);
-    const anim2 = createAnimation(dot2, 150);
-    const anim3 = createAnimation(dot3, 300);
+    const anim2 = createAnimation(dot2, 160);
+    const anim3 = createAnimation(dot3, 320);
 
     anim1.start();
     anim2.start();
@@ -53,7 +53,12 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'So
       <View
         style={[
           styles.bubble,
-          { backgroundColor: colors.incomingBubble },
+          {
+            backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+            borderColor: isDark ? colors.borderLight : colors.border,
+            borderWidth: 1,
+          },
+          Shadows.sm,
         ]}
       >
         <View style={styles.dotsRow}>
@@ -77,8 +82,8 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'So
           />
         </View>
       </View>
-      <Text style={[Typography.caption, styles.label, { color: colors.textSecondary }]}>
-        {username} is typing...
+      <Text style={[Typography.caption, styles.label, { color: colors.primary }]}>
+        {username} đang nhập...
       </Text>
     </View>
   );
@@ -87,7 +92,7 @@ export const TypingIndicator: React.FC<TypingIndicatorProps> = ({ username = 'So
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.lg,
-    marginVertical: Spacing.xs,
+    marginVertical: Spacing.xs + 2,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
@@ -102,7 +107,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 12,
+    height: 14,
   },
   dot: {
     width: 6,
@@ -110,6 +115,7 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   label: {
+    fontWeight: '600',
     fontStyle: 'italic',
   },
 });

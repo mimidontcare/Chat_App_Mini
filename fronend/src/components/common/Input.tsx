@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Typography, Radius, Spacing } from '../../constants/theme';
+import { Typography, Radius, Spacing, Shadows } from '../../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export interface InputProps extends TextInputProps {
@@ -21,6 +21,8 @@ export interface InputProps extends TextInputProps {
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightIconPress?: () => void;
   isPassword?: boolean;
+  showClear?: boolean;
+  onClear?: () => void;
   containerStyle?: ViewStyle;
 }
 
@@ -32,11 +34,14 @@ export const Input: React.FC<InputProps> = ({
   rightIcon,
   onRightIconPress,
   isPassword = false,
+  showClear = false,
+  onClear,
   containerStyle,
   style,
+  value,
   ...rest
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -52,13 +57,21 @@ export const Input: React.FC<InputProps> = ({
         style={[
           styles.inputContainer,
           {
-            backgroundColor: colors.surfaceSecondary,
+            backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
             borderColor: error
               ? colors.destructive
               : isFocused
               ? colors.primary
               : colors.border,
           },
+          Shadows.sm,
+          isFocused &&
+            Platform.OS === 'web' &&
+            ({
+              boxShadow: `0 0 0 3px ${
+                error ? 'rgba(239, 68, 68, 0.15)' : colors.primaryGlow || 'rgba(37, 99, 235, 0.15)'
+              }`,
+            } as any),
         ]}
       >
         {leftIcon ? (
@@ -76,14 +89,28 @@ export const Input: React.FC<InputProps> = ({
             Typography.body,
             styles.input,
             { color: colors.textPrimary },
+            Platform.OS === 'web'
+              ? ({
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
+                  outlineColor: 'transparent',
+                } as any)
+              : null,
             style,
           ]}
+          value={value}
           placeholderTextColor={colors.textPlaceholder}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           secureTextEntry={isPassword && !isPasswordVisible}
           {...rest}
         />
+
+        {showClear && value && value.length > 0 && onClear && (
+          <Pressable onPress={onClear} style={styles.clearBtn} hitSlop={8}>
+            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+          </Pressable>
+        )}
 
         {isPassword ? (
           <Pressable
@@ -96,7 +123,7 @@ export const Input: React.FC<InputProps> = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color={colors.textMuted}
+              color={isPasswordVisible ? colors.primary : colors.textMuted}
             />
           </Pressable>
         ) : rightIcon ? (
@@ -113,7 +140,7 @@ export const Input: React.FC<InputProps> = ({
 
       {error ? (
         <View style={styles.feedbackRow}>
-          <Ionicons name="alert-circle-outline" size={14} color={colors.destructive} />
+          <Ionicons name="alert-circle" size={14} color={colors.destructive} />
           <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
             {error}
           </Text>
@@ -133,46 +160,44 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: Spacing.xs + 2,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: -0.1,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 48,
+    borderWidth: 1.5,
     borderRadius: Radius.md,
-    borderWidth: 1.2,
     paddingHorizontal: Spacing.md,
-  },
+    transitionDuration: '150ms',
+  } as any,
   leftIcon: {
-    marginRight: Spacing.sm,
+    marginRight: Spacing.sm + 2,
+  },
+  rightIcon: {
+    padding: Spacing.xs,
+    marginLeft: Spacing.xs,
+  },
+  clearBtn: {
+    padding: Spacing.xs,
+    marginRight: Spacing.xs,
   },
   input: {
     flex: 1,
     height: '100%',
     paddingVertical: 0,
-    ...(Platform.OS === 'web'
-      ? ({
-          outlineStyle: 'none',
-          outlineWidth: 0,
-          outlineColor: 'transparent',
-          boxShadow: 'none',
-        } as any)
-      : {}),
-  },
-  rightIcon: {
-    marginLeft: Spacing.sm,
-    padding: Spacing.xs,
   },
   feedbackRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.xs,
     gap: 4,
+    marginTop: Spacing.xs + 2,
   },
   errorText: {
     fontWeight: '500',
   },
   hintText: {
-    marginTop: Spacing.xs,
+    marginTop: Spacing.xs + 2,
   },
 });

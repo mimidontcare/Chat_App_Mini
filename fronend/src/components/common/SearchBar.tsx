@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   TextInput,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
-import { Typography, Radius, Spacing } from '../../constants/theme';
+import { Typography, Radius, Spacing, Shadows } from '../../constants/theme';
 
 export interface SearchBarProps {
   value: string;
@@ -27,7 +27,7 @@ export interface SearchBarProps {
 export const SearchBar: React.FC<SearchBarProps> = ({
   value,
   onChangeText,
-  placeholder = 'Tìm kiếm bạn bè hoặc người dùng...',
+  placeholder = 'Tìm kiếm bạn bè hoặc tin nhắn...',
   loading = false,
   onClear,
   onPress,
@@ -35,7 +35,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   autoFocus = false,
   style,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleClear = () => {
     if (onClear) onClear();
@@ -47,16 +48,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       style={[
         styles.searchContainer,
         {
-          backgroundColor: colors.surfaceSecondary,
-          borderColor: colors.border,
+          backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+          borderColor: isFocused ? colors.primary : colors.border,
         },
+        Shadows.sm,
+        isFocused &&
+          Platform.OS === 'web' &&
+          ({
+            boxShadow: `0 0 0 3px ${colors.primaryGlow || 'rgba(37, 99, 235, 0.15)'}`,
+          } as any),
         style,
       ]}
     >
       <Ionicons
         name="search-outline"
-        size={18}
-        color={colors.textMuted}
+        size={19}
+        color={isFocused ? colors.primary : colors.textMuted}
         style={styles.searchIcon}
       />
       <TextInput
@@ -64,6 +71,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           Typography.body,
           styles.input,
           { color: colors.textPrimary },
+          Platform.OS === 'web'
+            ? ({
+                outlineStyle: 'none',
+                outlineWidth: 0,
+                outlineColor: 'transparent',
+              } as any)
+            : null,
         ]}
         value={value}
         onChangeText={onChangeText}
@@ -71,11 +85,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         placeholderTextColor={colors.textPlaceholder}
         editable={editable && !onPress}
         autoFocus={autoFocus}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         returnKeyType="search"
       />
       {loading ? (
         <ActivityIndicator size="small" color={colors.primary} style={styles.clearIcon} />
-      ) : value.length > 0 ? (
+      ) : value && value.length > 0 ? (
         <Pressable
           onPress={handleClear}
           hitSlop={8}
@@ -91,7 +107,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.8 : 1 }]}>
+      <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1 }]}>
         {content}
       </Pressable>
     );
@@ -105,10 +121,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     height: 44,
-    borderRadius: Radius.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderRadius: Radius.pill,
     paddingHorizontal: Spacing.md,
-  },
+    transitionDuration: '150ms',
+  } as any,
   searchIcon: {
     marginRight: Spacing.sm,
   },
@@ -116,17 +133,10 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     paddingVertical: 0,
-    ...(Platform.OS === 'web'
-      ? ({
-          outlineStyle: 'none',
-          outlineWidth: 0,
-          outlineColor: 'transparent',
-          boxShadow: 'none',
-        } as any)
-      : {}),
+    fontSize: 14,
   },
   clearIcon: {
-    marginLeft: Spacing.xs,
     padding: Spacing.xs,
+    marginLeft: Spacing.xs,
   },
 });

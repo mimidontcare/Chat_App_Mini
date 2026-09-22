@@ -6,6 +6,7 @@ import {
   FlatList,
   RefreshControl,
   Pressable,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,7 +56,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
   onOpenSearch,
 }) => {
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { isUserOnline } = useOnlineStatus();
 
   const [conversations, setConversations] = useState<ConversationItemData[]>([]);
@@ -104,7 +105,6 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
           const targetConv = prev[convIndex];
           const isFromPeer = Number(actualMessage.sender_id) !== Number(user?.id);
 
-          // Tránh đếm lặp unread_count nếu tin nhắn đã tồn tại
           if (actualMessage.id && targetConv.last_message?.id === actualMessage.id) {
             return prev;
           }
@@ -190,7 +190,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
             styles.headerBtn,
             {
               backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary,
-              borderColor: colors.border,
+              borderColor: colors.borderLight,
             },
           ]}
           hitSlop={8}
@@ -207,17 +207,22 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Tìm kiếm cuộc trò chuyện..."
+          onClear={() => setSearchQuery('')}
         />
       </View>
 
-      {/* Filter Tabs (Tất cả / Chưa đọc) */}
+      {/* Segmented Filter Tabs (Tất cả / Chưa đọc) */}
       <View style={styles.filterTabs}>
         <Pressable
           onPress={() => setFilterMode('all')}
           style={[
             styles.filterTab,
             filterMode === 'all'
-              ? [styles.activeFilterTab, { backgroundColor: colors.primary }]
+              ? [
+                  styles.activeFilterTab,
+                  { backgroundColor: colors.primary },
+                  Shadows.sm,
+                ]
               : { backgroundColor: colors.surfaceSecondary },
           ]}
         >
@@ -226,11 +231,11 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
               Typography.caption,
               {
                 color: filterMode === 'all' ? colors.onPrimary : colors.textSecondary,
-                fontWeight: '600',
+                fontWeight: '700',
               },
             ]}
           >
-            Tất cả
+            Tất cả ({conversations.length})
           </Text>
         </Pressable>
 
@@ -239,7 +244,11 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
           style={[
             styles.filterTab,
             filterMode === 'unread'
-              ? [styles.activeFilterTab, { backgroundColor: colors.primary }]
+              ? [
+                  styles.activeFilterTab,
+                  { backgroundColor: colors.primary },
+                  Shadows.sm,
+                ]
               : { backgroundColor: colors.surfaceSecondary },
           ]}
         >
@@ -248,7 +257,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
               Typography.caption,
               {
                 color: filterMode === 'unread' ? colors.onPrimary : colors.textSecondary,
-                fontWeight: '600',
+                fontWeight: '700',
               },
             ]}
           >
@@ -278,6 +287,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
         <FlatList
           data={filteredConversations}
           keyExtractor={(item) => item.id.toString()}
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
             <ConversationItem
               id={item.id}
@@ -303,8 +313,6 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({
               colors={[colors.primary]}
             />
           }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -317,10 +325,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerLeft: {
@@ -329,9 +337,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   unreadBadge: {
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: Radius.full,
+    borderRadius: Radius.pill,
   },
   unreadBadgeText: {
     color: '#FFFFFF',
@@ -339,34 +347,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   headerBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+  } as any,
   searchSection: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.xs,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   filterTabs: {
     flexDirection: 'row',
-    gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   filterTab: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 7,
+    paddingHorizontal: Spacing.md + 4,
     borderRadius: Radius.pill,
-  },
-  activeFilterTab: {
-    //
-  },
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', transition: 'all 150ms ease' } : {}),
+  } as any,
+  activeFilterTab: {},
   listContent: {
-    flexGrow: 1,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.xxl + 40,
   },
 });

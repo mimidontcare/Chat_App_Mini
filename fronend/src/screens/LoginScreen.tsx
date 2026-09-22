@@ -24,7 +24,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onDemoLogin,
 }) => {
   const { login } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -79,107 +79,123 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header & App Brand */}
-          <View style={styles.headerContainer}>
-            <View
-              style={[
-                styles.logoBadge,
-                { backgroundColor: colors.primaryLight },
-                Shadows.md,
-              ]}
-            >
-              <Ionicons name="chatbubbles" size={42} color={colors.primary} />
-            </View>
-            <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
-              Chào mừng trở lại!
-            </Text>
-            <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-              Đăng nhập để tiếp tục trò chuyện cùng bạn bè
-            </Text>
-          </View>
-
-          {/* Form Card */}
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.md,
-            ]}
-          >
-            {generalError ? (
+          <View style={styles.centerBox}>
+            {/* Header & App Brand */}
+            <View style={styles.headerContainer}>
               <View
                 style={[
-                  styles.errorBanner,
-                  { backgroundColor: colors.destructiveLight, borderColor: colors.destructive },
+                  styles.logoBadge,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.primaryLight,
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(37,99,235,0.15)',
+                  },
+                  Shadows.glow,
                 ]}
               >
-                <Ionicons name="alert-circle" size={18} color={colors.destructive} />
-                <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
-                  {generalError}
-                </Text>
+                <Ionicons name="chatbubbles" size={44} color={colors.primary} />
               </View>
-            ) : null}
+              <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
+                Chào mừng trở lại!
+              </Text>
+              <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+                Đăng nhập để tiếp tục trò chuyện cùng bạn bè
+              </Text>
+            </View>
 
-            <Input
-              label="Tên đăng nhập"
-              placeholder="Nhập username của bạn"
-              value={username}
-              onChangeText={(text) => {
-                setUsername(text);
-                if (usernameError) setUsernameError(null);
-              }}
-              error={usernameError}
-              autoCapitalize="none"
-              leftIcon="person-outline"
-            />
+            {/* Form Card */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: isDark ? colors.surface : colors.glassBg,
+                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
+                },
+                Shadows.md,
+                Platform.OS === 'web'
+                  ? ({
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                    } as any)
+                  : null,
+              ]}
+            >
+              {generalError ? (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    { backgroundColor: colors.destructiveLight, borderColor: colors.destructive },
+                  ]}
+                >
+                  <Ionicons name="alert-circle" size={18} color={colors.destructive} />
+                  <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
+                    {generalError}
+                  </Text>
+                </View>
+              ) : null}
 
-            <Input
-              label="Mật khẩu"
-              placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError(null);
-              }}
-              error={passwordError}
-              isPassword
-              leftIcon="lock-closed-outline"
-            />
-
-            <Button
-              title="Đăng Nhập"
-              onPress={handleLogin}
-              loading={isSubmitting}
-              variant="primary"
-              size="lg"
-              style={styles.submitBtn}
-            />
-
-            {/* Quick Demo Explore */}
-            {onDemoLogin ? (
-              <Button
-                title="Khám phá nhanh (Bỏ qua đăng nhập)"
-                onPress={onDemoLogin}
-                variant="outline"
-                size="md"
-                leftIcon={<Ionicons name="flash-outline" size={18} color={colors.primary} />}
-                style={styles.demoBtn}
+              <Input
+                label="Tên đăng nhập"
+                placeholder="Nhập username của bạn"
+                value={username}
+                onChangeText={(text) => {
+                  setUsername(text);
+                  if (usernameError) setUsernameError(null);
+                }}
+                error={usernameError}
+                autoCapitalize="none"
+                leftIcon="person-outline"
+                showClear
+                onClear={() => setUsername('')}
               />
-            ) : null}
-          </View>
 
-          {/* Footer chuyển sang Đăng ký */}
-          <View style={styles.footerRow}>
-            <Text style={[Typography.body, { color: colors.textSecondary }]}>
-              Chưa có tài khoản?{' '}
-            </Text>
-            <Button
-              title="Đăng ký ngay"
-              onPress={onNavigateToRegister}
-              variant="ghost"
-              size="sm"
-              textStyle={styles.linkText}
-            />
+              <Input
+                label="Mật khẩu"
+                placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError(null);
+                }}
+                error={passwordError}
+                isPassword
+                leftIcon="lock-closed-outline"
+              />
+
+              <Button
+                title="Đăng Nhập"
+                onPress={handleLogin}
+                loading={isSubmitting}
+                variant="primary"
+                size="lg"
+                style={styles.submitBtn}
+              />
+
+              {/* Quick Demo Explore */}
+              {onDemoLogin ? (
+                <Button
+                  title="Khám phá nhanh (Bỏ qua đăng nhập)"
+                  onPress={onDemoLogin}
+                  variant="glass"
+                  size="md"
+                  leftIcon={<Ionicons name="flash" size={18} color={colors.warning} />}
+                  style={styles.demoBtn}
+                />
+              ) : null}
+            </View>
+
+            {/* Footer chuyển sang Đăng ký */}
+            <View style={styles.footerRow}>
+              <Text style={[Typography.body, { color: colors.textSecondary }]}>
+                Chưa có tài khoản?{' '}
+              </Text>
+              <Button
+                title="Đăng ký ngay"
+                onPress={onNavigateToRegister}
+                variant="ghost"
+                size="sm"
+                textStyle={styles.linkText}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -197,21 +213,27 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.xxl,
     paddingBottom: Spacing.xxl,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerBox: {
+    width: '100%',
+    maxWidth: 440,
   },
   headerContainer: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   logoBadge: {
-    width: 84,
-    height: 84,
-    borderRadius: 26,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
+    borderWidth: 1.5,
   },
   title: {
     marginBottom: Spacing.xs,
@@ -219,9 +241,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     textAlign: 'center',
+    maxWidth: 320,
   },
   card: {
-    borderRadius: Radius.xl,
+    borderRadius: Radius.xxl,
     padding: Spacing.xl,
     borderWidth: 1,
   },

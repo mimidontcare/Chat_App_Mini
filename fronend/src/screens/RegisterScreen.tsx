@@ -20,7 +20,7 @@ interface RegisterScreenProps {
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogin }) => {
   const { register } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -95,122 +95,140 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigateToLogi
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.headerContainer}>
-            <View
-              style={[
-                styles.logoBadge,
-                { backgroundColor: colors.primaryLight },
-                Shadows.md,
-              ]}
-            >
-              <Ionicons name="person-add" size={38} color={colors.primary} />
-            </View>
-            <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
-              Tạo tài khoản mới
-            </Text>
-            <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
-              Tham gia ngay để kết nối và trò chuyện cùng mọi người
-            </Text>
-          </View>
-
-          {/* Form Card */}
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-              Shadows.md,
-            ]}
-          >
-            {generalError ? (
+          <View style={styles.centerBox}>
+            {/* Header */}
+            <View style={styles.headerContainer}>
               <View
                 style={[
-                  styles.errorBanner,
-                  { backgroundColor: colors.destructiveLight, borderColor: colors.destructive },
+                  styles.logoBadge,
+                  {
+                    backgroundColor: isDark ? colors.surfaceSecondary : colors.primaryLight,
+                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(37,99,235,0.15)',
+                  },
+                  Shadows.glow,
                 ]}
               >
-                <Ionicons name="alert-circle" size={18} color={colors.destructive} />
-                <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
-                  {generalError}
-                </Text>
+                <Ionicons name="person-add" size={40} color={colors.primary} />
               </View>
-            ) : null}
+              <Text style={[Typography.display, styles.title, { color: colors.textPrimary }]}>
+                Tạo tài khoản mới
+              </Text>
+              <Text style={[Typography.body, styles.subtitle, { color: colors.textSecondary }]}>
+                Tham gia ngay để kết nối và trò chuyện cùng mọi người
+              </Text>
+            </View>
 
-            <Input
-              label="Tên đăng nhập *"
-              placeholder="ví dụ: alexnguyen"
-              value={username}
-              onChangeText={(text) => {
-                setUsername(text);
-                if (usernameError) setUsernameError(null);
-              }}
-              error={usernameError}
-              autoCapitalize="none"
-              leftIcon="person-outline"
-            />
+            {/* Form Card */}
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: isDark ? colors.surface : colors.glassBg,
+                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : colors.border,
+                },
+                Shadows.md,
+                Platform.OS === 'web'
+                  ? ({
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                    } as any)
+                  : null,
+              ]}
+            >
+              {generalError ? (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    { backgroundColor: colors.destructiveLight, borderColor: colors.destructive },
+                  ]}
+                >
+                  <Ionicons name="alert-circle" size={18} color={colors.destructive} />
+                  <Text style={[Typography.caption, styles.errorText, { color: colors.destructive }]}>
+                    {generalError}
+                  </Text>
+                </View>
+              ) : null}
 
-            <Input
-              label="Email (Tùy chọn)"
-              placeholder="ví dụ: alex@gmail.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError(null);
-              }}
-              error={emailError}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              leftIcon="mail-outline"
-            />
+              <Input
+                label="Tên đăng nhập *"
+                placeholder="Tối thiểu 3 ký tự"
+                value={username}
+                onChangeText={(text) => {
+                  setUsername(text);
+                  if (usernameError) setUsernameError(null);
+                }}
+                error={usernameError}
+                autoCapitalize="none"
+                leftIcon="person-outline"
+                showClear
+                onClear={() => setUsername('')}
+              />
 
-            <Input
-              label="Mật khẩu *"
-              placeholder="Tối thiểu 6 ký tự"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (passwordError) setPasswordError(null);
-              }}
-              error={passwordError}
-              isPassword
-              leftIcon="lock-closed-outline"
-            />
+              <Input
+                label="Email (Không bắt buộc)"
+                placeholder="example@domain.com"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError(null);
+                }}
+                error={emailError}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="mail-outline"
+                showClear
+                onClear={() => setEmail('')}
+              />
 
-            <Input
-              label="Xác nhận mật khẩu *"
-              placeholder="Nhập lại mật khẩu"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (confirmPasswordError) setConfirmPasswordError(null);
-              }}
-              error={confirmPasswordError}
-              isPassword
-              leftIcon="shield-checkmark-outline"
-            />
+              <Input
+                label="Mật khẩu *"
+                placeholder="Tối thiểu 6 ký tự"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (passwordError) setPasswordError(null);
+                }}
+                error={passwordError}
+                isPassword
+                leftIcon="lock-closed-outline"
+              />
 
-            <Button
-              title="Đăng Ký Tài Khoản"
-              onPress={handleRegister}
-              loading={isSubmitting}
-              variant="primary"
-              size="lg"
-              style={styles.submitBtn}
-            />
-          </View>
+              <Input
+                label="Xác nhận mật khẩu *"
+                placeholder="Nhập lại mật khẩu"
+                value={confirmPassword}
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  if (confirmPasswordError) setConfirmPasswordError(null);
+                }}
+                error={confirmPasswordError}
+                isPassword
+                leftIcon="shield-checkmark-outline"
+              />
 
-          {/* Footer chuyển sang Đăng nhập */}
-          <View style={styles.footerRow}>
-            <Text style={[Typography.body, { color: colors.textSecondary }]}>
-              Đã có tài khoản?{' '}
-            </Text>
-            <Button
-              title="Đăng nhập ngay"
-              onPress={onNavigateToLogin}
-              variant="ghost"
-              size="sm"
-              textStyle={styles.linkText}
-            />
+              <Button
+                title="Đăng Ký Tài Khoản"
+                onPress={handleRegister}
+                loading={isSubmitting}
+                variant="primary"
+                size="lg"
+                style={styles.submitBtn}
+              />
+            </View>
+
+            {/* Footer chuyển sang Đăng nhập */}
+            <View style={styles.footerRow}>
+              <Text style={[Typography.body, { color: colors.textSecondary }]}>
+                Đã có tài khoản?{' '}
+              </Text>
+              <Button
+                title="Đăng nhập ngay"
+                onPress={onNavigateToLogin}
+                variant="ghost"
+                size="sm"
+                textStyle={styles.linkText}
+              />
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -231,18 +249,24 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xxl,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  centerBox: {
+    width: '100%',
+    maxWidth: 440,
   },
   headerContainer: {
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   logoBadge: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.md,
+    borderWidth: 1.5,
   },
   title: {
     marginBottom: Spacing.xs,
@@ -250,9 +274,10 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     textAlign: 'center',
+    maxWidth: 320,
   },
   card: {
-    borderRadius: Radius.xl,
+    borderRadius: Radius.xxl,
     padding: Spacing.xl,
     borderWidth: 1,
   },
@@ -270,7 +295,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   submitBtn: {
-    marginTop: Spacing.sm,
+    marginTop: Spacing.md,
   },
   footerRow: {
     flexDirection: 'row',

@@ -11,6 +11,8 @@ import {
   Modal,
   ActivityIndicator,
   Alert,
+  Keyboard,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +20,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../hooks/useTheme';
-import { Typography, Radius, Spacing } from '../constants/theme';
+import { Typography, Radius, Spacing, Shadows } from '../constants/theme';
 import {
   Avatar,
   ChatBubble,
@@ -71,7 +73,7 @@ interface ChatScreenProps {
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) => {
   const { user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
@@ -83,9 +85,34 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedMessageForReaction, setSelectedMessageForReaction] = useState<ChatMessageItem | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Lắng nghe bàn phím xuất hiện trên Android / iOS để tự động cuộn tin nhắn và đo chiều cao chính xác
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 80);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Helper chuyển đổi URL ảnh tương đối sang URL đầy đủ của server
   const resolveImageUrl = (url: string | null) => {
@@ -447,81 +474,91 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
-      {/* Chat Top Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
-        <Pressable
-          onPress={onBack}
-          style={styles.backBtn}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Trở về danh sách đoạn chat"
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </Pressable>
-
-        <View style={styles.headerProfile}>
-          <Avatar
-            uri={conversation.peer.avatar_url}
-            name={conversation.peer.username}
-            size="sm"
-            isOnline={isPeerOnline}
-            showStatus
-          />
-          <View style={styles.headerInfo}>
-            <Text style={[Typography.title, styles.headerName, { color: colors.textPrimary }]} numberOfLines={1}>
-              {conversation.peer.username}
-            </Text>
-            <Text
-              style={[
-                Typography.caption,
-                {
-                  color: isPeerTyping
-                    ? colors.primary
-                    : isPeerOnline
-                    ? colors.online
-                    : colors.textSecondary,
-                  fontWeight: isPeerTyping ? '600' : '400',
-                },
-              ]}
-            >
-              {isPeerTyping
-                ? 'Đang nhập...'
-                : isPeerOnline
-                ? 'Đang hoạt động'
-                : 'Không hoạt động'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => Alert.alert('Thông báo', 'Tính năng gọi thoại đang được phát triển.')}
-            style={styles.headerActionBtn}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Gọi thoại"
-          >
-            <Ionicons name="call-outline" size={20} color={colors.primary} />
-          </Pressable>
-
-          <Pressable
-            onPress={() => Alert.alert('Thông báo', 'Tính năng gọi video đang được phát triển.')}
-            style={styles.headerActionBtn}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Gọi video"
-          >
-            <Ionicons name="videocam-outline" size={22} color={colors.primary} />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* Messages Stream */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
         style={styles.flexContainer}
       >
+        {/* Chat Top Header */}
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }, Shadows.sm]}>
+          <Pressable
+            onPress={onBack}
+            style={({ pressed }) => [
+              styles.backBtn,
+              { backgroundColor: pressed ? colors.surfaceHover : 'transparent' },
+            ]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Trở về danh sách đoạn chat"
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+
+          <View style={styles.headerProfile}>
+            <Avatar
+              uri={conversation.peer.avatar_url}
+              name={conversation.peer.username}
+              size="sm"
+              isOnline={isPeerOnline}
+              hasRing={isPeerOnline}
+              showStatus
+            />
+            <View style={styles.headerInfo}>
+              <Text style={[Typography.title, styles.headerName, { color: colors.textPrimary }]} numberOfLines={1}>
+                {conversation.peer.username}
+              </Text>
+              <Text
+                style={[
+                  Typography.caption,
+                  {
+                    color: isPeerTyping
+                      ? colors.primary
+                      : isPeerOnline
+                      ? colors.online
+                      : colors.textSecondary,
+                    fontWeight: isPeerTyping || isPeerOnline ? '600' : '400',
+                  },
+                ]}
+              >
+                {isPeerTyping
+                  ? 'Đang nhập...'
+                  : isPeerOnline
+                  ? 'Đang hoạt động'
+                  : 'Không hoạt động'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => Alert.alert('Thông báo', 'Tính năng gọi thoại đang được phát triển.')}
+              style={({ pressed }) => [
+                styles.headerActionBtn,
+                { backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary },
+              ]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Gọi thoại"
+            >
+              <Ionicons name="call-outline" size={18} color={colors.primary} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => Alert.alert('Thông báo', 'Tính năng gọi video đang được phát triển.')}
+              style={({ pressed }) => [
+                styles.headerActionBtn,
+                { backgroundColor: pressed ? colors.surfaceHover : colors.surfaceSecondary },
+              ]}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Gọi video"
+            >
+              <Ionicons name="videocam-outline" size={20} color={colors.primary} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Messages Stream */}
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -534,6 +571,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             ref={flatListRef}
             data={messages}
             keyExtractor={(item) => item.id.toString()}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             renderItem={({ item }) => (
               <ChatBubble
                 message={{
@@ -552,8 +591,14 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             onScrollBeginDrag={() => setShowEmojiPicker(false)}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
-                <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center' }]}>
-                  Chưa có tin nhắn nào trong cuộc trò chuyện này.{'\n'}Hãy gửi lời chào đầu tiên!
+                <View style={[styles.emptyChatCircle, { backgroundColor: colors.primaryLight }]}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.primary} />
+                </View>
+                <Text style={[Typography.title, { color: colors.textPrimary, textAlign: 'center', marginTop: 12 }]}>
+                  Bắt đầu cuộc trò chuyện
+                </Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary, textAlign: 'center', marginTop: 4 }]}>
+                  Hãy gửi lời chào đầu tiên tới {conversation.peer.username}!
                 </Text>
               </View>
             }
@@ -568,28 +613,35 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
           style={[
             styles.composerBar,
             {
-              backgroundColor: colors.surface,
+              backgroundColor: isDark ? colors.surface : colors.floatingDock,
               borderTopColor: colors.borderLight,
-              paddingBottom: Math.max(Spacing.sm, insets.bottom),
+              paddingBottom: keyboardHeight > 0 ? Spacing.sm + 2 : Math.max(Spacing.sm, insets.bottom),
+              marginBottom: Platform.OS === 'android' && keyboardHeight > 0 ? keyboardHeight + 10 : 0,
             },
           ]}
         >
-          {/* Nút [+] (Mục 8: [ + ] [ Nhập tin nhắn... ] [Send]) */}
+          {/* Nút [+] thêm ảnh */}
           <Pressable
             onPress={handlePickImage}
-            style={styles.attachBtn}
+            style={({ pressed }) => [
+              styles.attachBtn,
+              { opacity: pressed ? 0.8 : 1 },
+            ]}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Thêm hình ảnh hoặc đính kèm"
           >
-            <Ionicons name="add-circle" size={28} color={colors.primary} />
+            <Ionicons name="add-circle" size={30} color={colors.primary} />
           </Pressable>
 
           {/* Ô nhập nội dung tin nhắn kèm nút Emoji */}
           <View
             style={[
               styles.inputContainer,
-              { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+              {
+                backgroundColor: isDark ? colors.surfaceSecondary : colors.surface,
+                borderColor: colors.border,
+              },
             ]}
           >
             <TextInput
@@ -622,7 +674,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
 
             {/* Nút bật/tắt Emoji Picker */}
             <Pressable
-              onPress={() => setShowEmojiPicker((prev) => !prev)}
+              onPress={() => {
+                if (!showEmojiPicker) {
+                  Keyboard.dismiss();
+                }
+                setShowEmojiPicker((prev) => !prev);
+              }}
               style={styles.emojiToggleBtn}
               hitSlop={8}
               accessibilityRole="button"
@@ -636,7 +693,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
             </Pressable>
           </View>
 
-          {/* Nút Gửi / Quick Like 👍 đặc trưng Messenger */}
+          {/* Nút Gửi / Quick Like 👍 */}
           {inputText.trim().length > 0 ? (
             <Pressable
               onPress={handleSendText}
@@ -645,6 +702,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
                 {
                   backgroundColor: colors.primary,
                 },
+                Shadows.glow,
+                Platform.OS === 'web'
+                  ? ({
+                      backgroundImage: 'linear-gradient(135deg, #2563EB, #4F46E5)',
+                    } as any)
+                  : null,
               ]}
               disabled={isSending}
               hitSlop={6}
@@ -656,7 +719,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ conversation, onBack }) 
               ) : (
                 <Ionicons
                   name="send"
-                  size={18}
+                  size={17}
                   color={colors.onPrimary}
                 />
               )}
@@ -778,6 +841,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
+  },
+  emptyChatCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   composerBar: {
     flexDirection: 'row',

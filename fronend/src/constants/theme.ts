@@ -2,19 +2,27 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    // Pro Max Design System Tokens
+    // Pro Max Design System Tokens - Modern Electric Blue & Indigo
     primary: '#2563EB',
     primaryDark: '#1D4ED8',
     primaryLight: '#EFF6FF',
+    primaryLighter: '#F5F9FF',
     onPrimary: '#FFFFFF',
 
     secondary: '#6366F1',
+    secondaryLight: '#EEF2FF',
     onSecondary: '#FFFFFF',
 
+    accent: '#06B6D4',
+    accentLight: '#ECFEFF',
+    onAccent: '#FFFFFF',
+
     background: '#F8FAFC',
+    backgroundSecondary: '#F1F5F9',
     surface: '#FFFFFF',
-    surfaceSecondary: '#F1F5F9',
-    surfaceHover: '#E2E8F0',
+    surfaceSecondary: '#F8FAFC',
+    surfaceHover: '#F1F5F9',
+    surfaceActive: '#E2E8F0',
 
     text: '#0F172A',
     textPrimary: '#0F172A',
@@ -27,6 +35,7 @@ export const Colors = {
     divider: '#E2E8F0',
 
     online: '#10B981',
+    onlineLight: '#D1FAE5',
     offline: '#94A3B8',
     success: '#10B981',
 
@@ -39,30 +48,50 @@ export const Colors = {
 
     incomingBubble: '#F1F5F9',
     incomingBubbleText: '#0F172A',
+    incomingBubbleBorder: 'rgba(226, 232, 240, 0.8)',
     outgoingBubble: '#2563EB',
+    outgoingBubbleEnd: '#4F46E5',
     outgoingBubbleText: '#FFFFFF',
 
     readTick: '#38BDF8',
     unreadBadge: '#EF4444',
     card: '#FFFFFF',
 
+    // Glassmorphic & Aura Tokens
+    glassBg: 'rgba(255, 255, 255, 0.86)',
+    glassBorder: 'rgba(226, 232, 240, 0.85)',
+    floatingDock: 'rgba(255, 255, 255, 0.94)',
+    overlayBg: 'rgba(15, 23, 42, 0.4)',
+    primaryGlow: 'rgba(37, 99, 235, 0.25)',
+    onlineGlow: 'rgba(16, 185, 129, 0.35)',
+    cardGlow: 'rgba(37, 99, 235, 0.04)',
+
     // Backward compatibility tokens
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
   },
   dark: {
+    // Pro Max Design System Tokens - Deep OLED Slate Luxury
     primary: '#3B82F6',
     primaryDark: '#2563EB',
     primaryLight: '#1E293B',
+    primaryLighter: '#152033',
     onPrimary: '#FFFFFF',
 
     secondary: '#818CF8',
+    secondaryLight: '#1F2442',
     onSecondary: '#FFFFFF',
 
-    background: '#0B0F17',
-    surface: '#151D2A',
-    surfaceSecondary: '#1E293B',
-    surfaceHover: '#334155',
+    accent: '#22D3EE',
+    accentLight: '#11293B',
+    onAccent: '#FFFFFF',
+
+    background: '#080C14',
+    backgroundSecondary: '#0F1626',
+    surface: '#121A2B',
+    surfaceSecondary: '#192339',
+    surfaceHover: '#23304B',
+    surfaceActive: '#2D3D5E',
 
     text: '#F8FAFC',
     textPrimary: '#F8FAFC',
@@ -70,11 +99,12 @@ export const Colors = {
     textMuted: '#64748B',
     textPlaceholder: '#64748B',
 
-    border: '#263345',
-    borderLight: '#1E293B',
-    divider: '#263345',
+    border: 'rgba(255, 255, 255, 0.08)',
+    borderLight: 'rgba(255, 255, 255, 0.04)',
+    divider: 'rgba(255, 255, 255, 0.07)',
 
     online: '#10B981',
+    onlineLight: '#064E3B',
     offline: '#64748B',
     success: '#10B981',
 
@@ -85,18 +115,29 @@ export const Colors = {
     warning: '#FBBF24',
     warningLight: '#452C06',
 
-    incomingBubble: '#1E293B',
+    incomingBubble: '#192339',
     incomingBubbleText: '#F8FAFC',
+    incomingBubbleBorder: 'rgba(255, 255, 255, 0.07)',
     outgoingBubble: '#2563EB',
+    outgoingBubbleEnd: '#4F46E5',
     outgoingBubbleText: '#FFFFFF',
 
     readTick: '#38BDF8',
     unreadBadge: '#EF4444',
-    card: '#151D2A',
+    card: '#121A2B',
+
+    // Glassmorphic & Aura Tokens
+    glassBg: 'rgba(18, 26, 43, 0.88)',
+    glassBorder: 'rgba(255, 255, 255, 0.1)',
+    floatingDock: 'rgba(15, 22, 38, 0.94)',
+    overlayBg: 'rgba(0, 0, 0, 0.65)',
+    primaryGlow: 'rgba(59, 130, 246, 0.3)',
+    onlineGlow: 'rgba(16, 185, 129, 0.45)',
+    cardGlow: 'rgba(59, 130, 246, 0.07)',
 
     // Backward compatibility tokens
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
+    backgroundElement: '#1A2234',
+    backgroundSelected: '#25324D',
   },
 } as const;
 
@@ -128,26 +169,29 @@ export const Typography = {
   display: {
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
+    letterSpacing: -0.5,
   },
   headline: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '600' as const,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: '700' as const,
+    letterSpacing: -0.3,
   },
   title: {
     fontSize: 16,
     lineHeight: 22,
     fontWeight: '600' as const,
+    letterSpacing: -0.2,
   },
   body: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
     fontWeight: '400' as const,
   },
   bodyMedium: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
     fontWeight: '500' as const,
   },
   subtext: {
@@ -157,8 +201,9 @@ export const Typography = {
   },
   caption: {
     fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '500' as const,
+    lineHeight: 15,
+    fontWeight: '600' as const,
+    letterSpacing: 0.2,
   },
 };
 
@@ -183,11 +228,12 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
-  xs: 4,
-  sm: 8,
-  md: 12,
+  xs: 6,
+  sm: 10,
+  md: 14,
   lg: 18,
   xl: 24,
+  xxl: 32,
   pill: 9999,
   full: 9999,
 } as const;
@@ -195,41 +241,75 @@ export const Radius = {
 export const Shadows = {
   sm: Platform.select({
     ios: {
-      shadowColor: '#000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 2,
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
     },
     android: {
-      elevation: 1,
+      elevation: 1.5,
     },
-    default: {},
+    default: {
+      boxShadow: '0 1px 3px 0 rgba(15, 23, 42, 0.06)',
+    },
   }),
   md: Platform.select({
     ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.09,
-      shadowRadius: 6,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
     },
     android: {
-      elevation: 3,
+      elevation: 4,
     },
-    default: {},
+    default: {
+      boxShadow: '0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04)',
+    },
   }),
   lg: Platform.select({
     ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.14,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+    },
+    android: {
+      elevation: 8,
+    },
+    default: {
+      boxShadow: '0 12px 24px -4px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06)',
+    },
+  }),
+  glow: Platform.select({
+    ios: {
+      shadowColor: '#2563EB',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
       shadowRadius: 12,
     },
     android: {
       elevation: 6,
     },
-    default: {},
+    default: {
+      boxShadow: '0 4px 16px 0 rgba(37, 99, 235, 0.35)',
+    },
+  }),
+  floating: Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.14,
+      shadowRadius: 24,
+    },
+    android: {
+      elevation: 10,
+    },
+    default: {
+      boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+    },
   }),
 };
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const MaxContentWidth = 1040;

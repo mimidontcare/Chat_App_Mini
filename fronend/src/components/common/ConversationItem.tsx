@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable, ViewStyle } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ViewStyle, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../hooks/useTheme';
 import { Typography, Spacing, Radius } from '../../constants/theme';
@@ -35,9 +35,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   onPress,
   style,
 }) => {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Format thời gian ngắn gọn
   const formatTime = (isoString?: string) => {
     if (!isoString) return '';
     try {
@@ -76,14 +76,19 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   return (
     <Pressable
       onPress={onPress}
+      onHoverIn={() => setIsHovered(true)}
+      onHoverOut={() => setIsHovered(false)}
       style={({ pressed }) => [
         styles.container,
         {
           backgroundColor: pressed
+            ? colors.surfaceHover
+            : isHovered
             ? colors.surfaceSecondary
             : 'transparent',
           borderBottomColor: colors.borderLight,
         },
+        Platform.OS === 'web' ? ({ cursor: 'pointer', transition: 'background-color 150ms ease' } as any) : null,
         style,
       ]}
       accessibilityRole="button"
@@ -138,8 +143,14 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
           {isUnread ? (
             <Badge count={unreadCount} size="sm" variant="destructive" />
-          ) : isSentByMe && lastMessage?.is_read ? (
-            <Ionicons name="checkmark-done" size={16} color={colors.primary} />
+          ) : isSentByMe && lastMessage ? (
+            <View style={styles.readStatus}>
+              {lastMessage.is_read ? (
+                <Ionicons name="checkmark-done" size={15} color={colors.primary} />
+              ) : (
+                <Ionicons name="checkmark" size={15} color={colors.textMuted} />
+              )}
+            </View>
           ) : null}
         </View>
       </View>
@@ -154,6 +165,8 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radius.md,
+    marginHorizontal: Spacing.xs,
   },
   avatarWrapper: {
     marginRight: Spacing.md,
@@ -164,27 +177,33 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   name: {
     flex: 1,
     marginRight: Spacing.sm,
+    fontSize: 15,
   },
   time: {
-    flexShrink: 0,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   preview: {
     flex: 1,
     marginRight: Spacing.sm,
+    fontSize: 13,
   },
   unreadText: {
     fontWeight: '700',
+  },
+  readStatus: {
+    marginLeft: 4,
   },
 });
